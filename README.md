@@ -69,6 +69,67 @@ Una vez persista la configuracion en cada broker, invoque el script orquestador
 sudo bash orchestra_business.sh
 ```
 
+---
+
+## Configuracion de la paqueteria para los srv de negocio
+
+### PACKAGE BD
+
+
+    # packague bd-simf & pg_replica
+    /app_psql
+
+    # packague primary & replica
+    |--- packague_bd/
+        --- creacion-bd/
+        --- desinstall-bd.sh
+        --- failover.sh
+        --- install-bd.sh
+        --- install-infra.sh
+        --- orden-bd.sh
+        --- pool_passwd
+        --- images/
+            |--- simf-primary.tar
+            |--- simf_replica.tar
+        --- stack/
+            |--- primary-stack.yml
+            |--- replica-stack.yml
+
+### PACKAGE MS
+
+
+    # packague simf
+
+    /app_services/
+    |--- app_simf/
+        --- stack-simfcito.yml
+        --- comunes/
+        --- credito/
+        --- debito/
+        --- rest_api/
+        --- image/
+            |--- simf_ms_0_2_2.tar
+            |--- simf_rest_api_0_2_2.tar
+
+    # packague sglpar
+    |--- app_sglpar/
+        --- stack-sglparcito.yml
+        --- comunes/
+        --- credito/
+        --- debito/
+        --- rest_api/
+        --- image/
+            |--- sglpar_ms_0_2_2.tar
+            |--- sglpar_rest_api_0_2_2.tar
+
+
+
+
+
+
+
+
+
 
 
 ````
