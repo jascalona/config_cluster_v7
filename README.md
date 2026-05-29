@@ -75,11 +75,9 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE BD
 
-
-    # packague bd-simf & pg_replica
+    # packgue bd-simf & pg_replica
     /app_psql
 
-    # packague primary & replica
     |--- packague_bd/
         --- creacion-bd/
         --- desinstall-bd.sh
@@ -95,10 +93,26 @@ sudo bash orchestra_business.sh
             |--- primary-stack.yml
             |--- replica-stack.yml
 
+
+### PACKAGE KAFKITA
+
+    # packgue kafkita
+    /kafka
+
+    |--- kafka/
+        --- data/
+        --- jmx/
+            |--- jmx_prometheus_javaagent-1.4.0.jar
+            |--- kafka-jmx.yml
+        --- images/
+            |--- projectsintel-kafka-simf-v7_1.0.2.tar
+        --- stack/
+            |--- kafkita.yml
+
+
 ### PACKAGE MS
 
-
-    # packague simf
+    # packgue simf
 
     /app_services/
     |--- app_simf/
