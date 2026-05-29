@@ -15,8 +15,8 @@ MOUNT_KAFKA="/kafka/kafka/"
 DATA_DIR="/kafka/kafka/data"
 
 # Rutas de Imagenes
-IMAGE_PATH_PG_P="/app_psql/packague_bd/simf-primary.tar"
-IMAGE_PATH_PG_R="/app_psql/packague_bd/simf_replica.tar"
+IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
+IMAGE_PATH_PG_R="/app_psql/packague_bd/images/simf_replica.tar"
 
 IMAGE_PATH_SIMF_REST="/app_services/app_simf/images/simf_rest_api_0_2_2.tar"
 IMAGE_PATH_SIMF_MS="/app_services/app_simf/images/simf_ms_0_2_2.tar"
