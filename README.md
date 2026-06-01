@@ -19,14 +19,13 @@ El despliegue se divide en tres capas críticas que deben ejecutarse en un orden
 Antes de ejecutar los scripts, asegúrate de que los puntos de montaje existan en los servidores y que los archivos `.tar` de las imágenes estén en sus respectivas rutas:
 
 | Componente | Punto de Montaje Requerido | Archivo `.tar` Esperado |
-| :--- 
-| **PostgreSQL Primario** | `/app_psql/packague_bd/` | `simf-primary.tar, simf_replica.tar` |
-| :--- 
+| :--- | :--- | :--- |
+| **PostgreSQL Primario** | `/app_psql/packague_bd/` | `simf-primary.tar`, `simf_replica.tar` |
 | **Kafka Broker** | `/kafka/kafka/` | `images/projectsintel-kafka-simf-v7_1.0.2.tar` |
-| :--- 
-| **Microservicios (SIMF)** | `/app_services/` | `app_simf/images/simf_rest_api_0_2_2.tar` <br> `app_simf/images/simf_ms_0_2_2.tar` || :--- | :--- | :--- |
+| **Microservicios (SIMF)** | `/app_services/` | `app_simf/images/simf_rest_api_0_2_2.tar` <br> `app_simf/images/simf_ms_0_2_2.tar` |
 | **Observabilidad** | `/metrics/` | `Observ/alloy.tar` |
-| :--- 
+
+
 > **IMPORTANTE:** Todos los scripts deben tener permisos de ejecución. Otórgalos con el comando:
 > ```bash
 > chmod +x *.sh
