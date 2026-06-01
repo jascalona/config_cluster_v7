@@ -1,380 +1,428 @@
 #!/bin/bash
 
-# Instalación automatizada para negocio válido para el servidor principal y réplica 
+# ==============================================================================
+# CONFIGURACIÓN VISUAL Y COLORES (CLI PROFESIONAL)
+# ==============================================================================
+COLOR_RESET="\e[0m"
+NEON_GREEN="\e[38;5;82m"
+DEEP_BLUE="\e[38;5;39m"
+VIVID_YELLOW="\e[38;5;214m"
+CRIMSON_RED="\e[38;5;196m"
+CYAN_INFO="\e[38;5;51m"
+BOLD="\e[1m"
 
+log_info()    { echo -e " ${CYAN_INFO}➔${COLOR_RESET} $1"; }
+log_success() { echo -e " ${NEON_GREEN}✔${COLOR_RESET} $1"; }
+log_warning() { echo -e " ${VIVID_YELLOW}⚠${COLOR_RESET} ${BOLD}$1${COLOR_RESET}"; }
+log_error()   { echo -e " ${CRIMSON_RED}✖${COLOR_RESET} ${BOLD}$1${COLOR_RESET}"; }
+
+press_to_continue() {
+    echo -e "\n${VIVID_YELLOW}➔ Presione [ENTER] para continuar con el siguiente bloque del despliegue...${COLOR_RESET}"
+    read -r
+}
+
+# ==============================================================================
+# VARIABLES DE ENTORNO
+# ==============================================================================
 BUSINESS_01="negocio01"
 BUSINESS_02="negocio02"
 BUSINESS_03="negocio03"
 
-# Puntos de montaje negocio
 MOUNT_APP_PSQ="/app_psql/packague_bd/"
 MOUNT_APP_SERV="/app_services/"
 MOUNT_KAFKA="/kafka/kafka/"
-
-# Repositorios
 DATA_DIR="/kafka/kafka/data"
 
-# Rutas de Imagenes
 IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
 IMAGE_PATH_PG_R="/app_psql/packague_bd/images/simf_replica.tar"
-
 IMAGE_PATH_SIMF_REST="/app_services/app_simf/images/simf_rest_api_0_2_2.tar"
 IMAGE_PATH_SIMF_MS="/app_services/app_simf/images/simf_ms_0_2_2.tar"
-
 IMAGE_PATH_KAFKA="/kafka/kafka/images/projectsintel-kafka-simf-v7_1.0.2.tar"
 
-# Nombre de las imagenes
 IMG_NAME_PG_P="bd-simf:latest"
 IMG_NAME_PG_R="ibp_simf_replica:latest"
 IMG_NAME_KAFKA="projectsintel/kafka-simf-v7:1.0.2"
 IMG_NAME_SIMF_REST="sycom/simf_rest_api:0.2.2"
 IMG_NAME_SIMF_MS="sycom/simf_ms:0.2.2"
 
-# secrets
 NAME_POSTGRES="postgre_password"
 
-echo "--- script de instalacion automatizado valido para los servidores de negocio ---"
+# ==============================================================================
+# INTERFAZ DE CARGA (SPINNER)
+# ==============================================================================
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    tput civis  
+    while [ "$(ps -p $pid -o pid=)" ]; do
+        local temp=${spinstr#?}
+        printf " ${DEEP_BLUE}[%c]${COLOR_RESET}  Procesando, por favor espere..." "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" 
+    done
+    tput cnorm 
+    printf " ${NEON_GREEN}[OK]${COLOR_RESET}\n"
+}
+
+# ==============================================================================
+# FLUJO PRINCIPAL
+# ==============================================================================
+clear
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}  ASISTENTE DE INSTALACIÓN AUTOMATIZADA - CLÚSTER DE NEGOCIO       ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
 while true; do
-    # MENU DE OPCIONES
-    echo "=========================================="
-    echo "HOLA PAPU, BIENVENIDO AL MENU DE OPCIONES"
-    echo "=========================================="
-    echo "1) Para la Instalacion srv principal"
-    echo "2) Para la Instalacion srv replica"
-    echo "3) Salir del flujo de instalacion"
-    echo "------------------------------------------"
+    echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN:${COLOR_RESET}"
+    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Inicializar Servidor Principal (Primary Node)"
+    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Inicializar Servidor Réplica (Replica Node)"
+    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Salir del Asistente"
+    echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
     
-    read -p "Selecciona una opción valida (1-3): " opcion
+    read -p "Seleccione una opción (1-3): " opcion
 
     case $opcion in 
         1) 
-            echo -e "\n[+] Iniciando flujo de instalacion para srv primario..."
-            
-            echo "==============================================================================================="
-            echo -e "\nMI BRO, ANTES DE INICIAR VOY A REALIZAR UN SCANNER DEL AMBIENTE PARA VERIFICAR EL ESTADO ACTUAL"
-            echo "==============================================================================================="
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 1: ESCANEO Y VERIFICACIÓN DEL SERVIDOR PRINCIPAL           ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-            echo -e "\n[--] Verificando el punto de montaje y paqueteria de postgres"
+            log_info "Verificando puntos de montaje para PostgreSQL Swarm..."
             if [ -d "$MOUNT_APP_PSQ" ]; then 
+                log_success "Punto de montaje detectado en: $MOUNT_APP_PSQ"
                 
-                echo -e "\n[+] EL Punto de montaje y la paqueteria fueron detectadas con exito"
-                echo "--------------------------------------------------------------------"
-                echo "Iniciando el proceso de instalacion srv primario"
-                
-                echo -e "\n[+] Cargando Imagenes de Base de Datos..."
-                
-                # Imagen bd-primaria
+                # --- CARGA DE IMÁGENES BD ---
+                echo -e "\n${BOLD}[Componente: Database Engine]${COLOR_RESET}"
                 if [[ -z "$(sudo docker images -q $IMG_NAME_PG_P 2> /dev/null)" ]]; then
-                    echo "La imagen primaria no existe, Iniciando proceso de carga..." 
                     if [ -f "$IMAGE_PATH_PG_P" ]; then
-                        sudo docker load -i "$IMAGE_PATH_PG_P"
+                        echo -n "   Cargando imagen primaria ($IMG_NAME_PG_P)..."
+                        sudo docker load -i "$IMAGE_PATH_PG_P" > /dev/null 2>&1 &
+                        spinner $!
                     else 
-                        echo "Error: La imagen no fue localizada en la ruta $IMAGE_PATH_PG_P"
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_P"
                         exit 1
                     fi
                 else 
-                    echo "La imagen $IMG_NAME_PG_P ya existe. Omitiendo carga."
+                    log_success "La imagen $IMG_NAME_PG_P ya se encuentra en el host."
                 fi
 
-                # Imagen de bd-replica
                 if [[ -z "$(sudo docker images -q $IMG_NAME_PG_R 2> /dev/null)" ]]; then
-                    echo "La imagen de replica no existe, Iniciando proceso de carga..." 
                     if [ -f "$IMAGE_PATH_PG_R" ]; then
-                        sudo docker load -i "$IMAGE_PATH_PG_R"
+                        echo -n "   Cargando imagen de réplica ($IMG_NAME_PG_R)..."
+                        sudo docker load -i "$IMAGE_PATH_PG_R" > /dev/null 2>&1 &
+                        spinner $!
                     else 
-                        echo "Error: La imagen no fue localizada en la ruta $IMAGE_PATH_PG_R"
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_R"
                         exit 1
                     fi
                 else 
-                    echo "La imagen $IMG_NAME_PG_R ya existe. Omitiendo carga."
+                    log_success "La imagen $IMG_NAME_PG_R ya se encuentra en el host."
                 fi
 
-                echo "===================================================="
-                echo -e "\n[+] Configurando los directorios para los tblspc"
+                # --- CONFIGURACIÓN E INYECCIÓN ---
+                log_info "Ejecutando aprovisionamiento de tablespaces..."
                 sudo bash "${MOUNT_APP_PSQ}install-bd.sh"
                 
-                echo "===================================================="
-                echo -e "\n[+] Verificando secret: $NAME_POSTGRES"
+                log_info "Validando persistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
                 if sudo docker secret inspect "$NAME_POSTGRES" >/dev/null 2>&1; then
-                    echo "El secret $NAME_POSTGRES ya fue creado, omitiendo este paso"
+                    log_success "Secret existente en el clúster. Omitiendo creación."
                 else 
-                    echo "El secret aun no esta creado"
-                    echo -e "\n[+] Iniciando la creacion del secret $NAME_POSTGRES"
+                    log_warning "Secret no detectado. Iniciando inyección..."
                     sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf' | sudo docker secret create postgre_password -
-                    sudo docker secret inspect "$NAME_POSTGRES"                    
-                    echo "El secret ha sido creado con exito..."
+                    sudo docker secret inspect "$NAME_POSTGRES" > /dev/null
+                    log_success "Secret creado exitosamente."
                 fi
 
-                echo "===================================================="
-                echo -e "\n[--] Iniciando escaner de la red pg_net"
+                log_info "Escaneando infraestructura de red del clúster (pg_net)..."
                 if sudo docker network inspect pg_net >/dev/null 2>&1; then
-                    echo "La red pg_net ya existe. Omitiendo paso"
+                    log_success "Red overlay 'pg_net' detectada."
                 else
-                    echo "La red no existe."
-                    echo -e "\n[+] Creando la red pg_net"
+                    log_warning "Red 'pg_net' ausente. Creando topología overlay..."
                     sudo docker network create --driver overlay --subnet 10.0.10.0/24 --gateway 10.0.10.1 --attachable pg_net
-                    echo "La red ha sido creada con exito..."
+                    log_success "Red superpuesta distribuida creada correctamente."
                 fi  
 
-                # Construccion de labels en el Swarm
-                echo "===================================================="
-                echo -e "\n[+] Cargando los labels (pg_role)"
-                sudo docker node update --label-add pg_role=primary "$BUSINESS_01"
-                sudo docker node update --label-add role=bd-simf "$BUSINESS_01"
+                log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
+                sudo docker node update --label-add pg_role=primary "$BUSINESS_01" > /dev/null
+                sudo docker node update --label-add role=bd-simf "$BUSINESS_01" > /dev/null
+                sudo docker node update --label-add pg_role=replica "$BUSINESS_02" > /dev/null
+                sudo docker node update --label-add pg_role=replica "$BUSINESS_03" > /dev/null
+                log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
 
-                echo "============================================================"
-                echo -e "\n[+] Inyeccion de labels para los nodos de replica"
-                sudo docker node update --label-add pg_role=replica "$BUSINESS_02"
-                sudo docker node update --label-add pg_role=replica "$BUSINESS_03"
-                echo "Los Labels fueron creados con exito"
-
-                # Despliegue BD-SIMF
-                echo "===================================================="
-                echo -e "\n[+] Iniciando el despliegue de BD-SIMF"
-                if [ -f "/app_psql/packague_bd/primary-stack.yml" ]; then 
-                    sudo docker stack deploy -c /app_psql/packague_bd/primary-stack.yml bd-simf
-                    sudo docker stack ps --no-trunc bd-simf
+                # --- DESPLIEGUE BD ---
+                log_info "Lanzando stack de base de datos..."
+                if [ -f "/app_psql/packague_bd/stack/primary-stack.yml" ]; then 
+                    echo -n "   Desplegando stack 'bd-simf' en Swarm..."
+                    sudo docker stack deploy -c /app_psql/packague_bd/stack/primary-stack.yml bd-simf > /dev/null 2>&1 &
+                    spinner $!
+                    sudo docker stack ps --no-trunc bd-simf | head -n 5
                 else 
-                    echo -e "\nEl stack no esta en la ruta especificada"
+                    log_error "Manifiesto 'primary-stack.yml' no encontrado."
                     exit 1
                 fi 
             else 
-                echo "MI BRO, NO LOGRAMOS DETECTAR EL PUNTO DE MONTAJE DE BD, VAMOS A ABORTAR EL FLUJO"
+                log_error "Punto de montaje de base de datos ausente de forma crítica. Abortando flujo."
                 exit 1
             fi
 
-            # Instalación de kafka
-            echo "========================================"
-            echo -e "\n[+] INICIANDO CONFIGURACION DE KAFKA"
-            echo "========================================"
+            #  PAUSA 1: Finalización de la Base de Datos antes de Kafka
+            press_to_continue
 
-            echo -e "\n[--] Verificando el punto de montaje y paqueteria de kafka"
+            # --- CONFIGURACIÓN DE KAFKA ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 2: CONFIGURACIÓN Y DESPLIEGUE DEL BROKER (KAFKA)           ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            log_info "Verificando punto de montaje para Kafka..."
             if [ -d "$MOUNT_KAFKA" ]; then
-
-                echo -e "\n[+] EL Punto de montaje y la paqueteria fueron detectadas con exito"
-                echo "--------------------------------------------------------------------"
-                echo -e "\n[+] Cargando Imagenes de Kafka..."
-
-                # Imagenes kafka
+                log_success "Punto de montaje detectado en: $MOUNT_KAFKA"
+                
                 if [[ -z "$(sudo docker images -q $IMG_NAME_KAFKA 2> /dev/null)" ]]; then 
-                    echo "La imagen no existe, Iniciando proceso de carga..."
                     if [ -f "$IMAGE_PATH_KAFKA" ]; then 
-                        sudo docker load -i "$IMAGE_PATH_KAFKA"
+                        echo -n "   Cargando imagen de Kafka ($IMG_NAME_KAFKA)..."
+                        sudo docker load -i "$IMAGE_PATH_KAFKA" > /dev/null 2>&1 &
+                        spinner $!
                     else 
-                        echo "Error: La imagen no fue localizada en la ruta $IMAGE_PATH_KAFKA"
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_KAFKA"
                         exit 1
                     fi
                 else 
-                    echo "La imagen $IMG_NAME_KAFKA ya existe. Omitiendo carga."
+                    log_success "La imagen $IMG_NAME_KAFKA ya existe en el host."
                 fi 
 
-                echo "===================================================="
-                echo -e "\n[--] Iniciando escaner de la red monitoring"
+                log_info "Validando infraestructura de red para telemetría y monitoreo..."
                 if sudo docker network inspect monitoring >/dev/null 2>&1; then
-                    echo "La red monitoring ya existe. Omitiendo paso"
+                    log_success "Red overlay 'monitoring' activa."
                 else
-                    echo "La red no existe. Creando..."
-                    sudo docker network create --driver overlay monitoring
-                    echo "La red ha sido creada con exito..."
+                    log_warning "Red 'monitoring' ausente. Creando segmento de red..."
+                    sudo docker network create --driver overlay monitoring > /dev/null
+                    log_success "Red superpuesta de monitoreo aislada correctamente."
                 fi  
 
-                # Gestion del directorio data
-                echo "===================================================="
-                echo -e "\n[+] Configurando repo de Meta data"
+                log_info "Estructurando repositorios persistentes de Meta Data..."
                 if [ -d "$DATA_DIR" ]; then 
-                    echo "El directorio data ya existe. Liberando espacio..."
+                    log_warning "Datos antiguos detectados en $DATA_DIR. Purgando volumen..."
                     sudo rm -rf "$DATA_DIR"
                     sudo mkdir -p "$DATA_DIR"
-                    echo -e "\n[+] Espacio liberado"
-                    echo "-------------------------------------------------------"
-                    sudo df -h
-                    echo "-------------------------------------------------------"
+                    log_success "Volumen limpiado y reformateado."
                 else 
-                    echo -e "\n[Verificando:] Repo data no localizado. Creando..."
+                    log_info "Creando nuevo directorio para el volumen de datos de Kafka..."
                     sudo mkdir -p "$DATA_DIR"
                 fi
 
-                # Aplicar permisos
-                echo "===================================================="
-                echo -e "\n[+] Aplicando los permisos al repo de metadatos"
+                log_info "Aplicando ACL y permisos de propietario (UID 1000:1000)..."
                 sudo chown -R 1000:1000 "$MOUNT_KAFKA"
-                echo "Permisos aplicados con exito"
-                echo "===================================================="
+                log_success "Permisos del sistema de archivos aplicados."
             else 
-                echo "MI BRO, NO LOGRAMOS DETECTAR EL PUNTO DE MONTAJE DE KAFKA, VAMOS A ABORTAR"
+                log_error "Punto de montaje de Kafka no localizado. Abortando."
                 exit 1
             fi
+
+            #  PAUSA 2: Finalización de Kafka antes de Servicios SIMF
+            press_to_continue
+
+            # --- CONFIGURACIÓN DE SERVICIOS SIMF ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION DE APLICACIÓN (SIMF)                      ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            log_info "Verificando punto de montaje de la capa de servicios..."
+            if [ -d "$MOUNT_APP_SERV" ]; then 
+                log_success "Punto de montaje detectado en: $MOUNT_APP_SERV"
+                
+                if [[ -z "$(sudo docker images -q $IMG_NAME_SIMF_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SIMF_MS 2> /dev/null)" ]]; then 
+                    log_warning "Imágenes parciales o ausentes. Iniciando carga masiva..."
+
+                    if [ -f "$IMAGE_PATH_SIMF_REST" ] && [ -f "$IMAGE_PATH_SIMF_MS" ]; then
+                        echo -n "   Cargando paquete REST API ($IMG_NAME_SIMF_REST)..."
+                        sudo docker load -i "$IMAGE_PATH_SIMF_REST" > /dev/null 2>&1 &
+                        spinner $!
+
+                        echo -n "   Cargando paquete Microservicios ($IMG_NAME_SIMF_MS)..."
+                        sudo docker load -i "$IMAGE_PATH_SIMF_MS" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
+                        exit 1
+                    fi
+
+                    log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
+                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
+                        log_success "Red balanceadora 'nginx_lbnet' existente."
+                    else
+                        log_warning "Red perimetral ausente. Creando red del balanceador..."
+                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                        log_success "Segmentación perimetral configurada."
+                    fi  
+                else 
+                    log_success "Las imágenes del ecosistema SIMF ya están sincronizadas."
+                fi 
+
+                echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+                echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NODO PRINCIPAL COMPLETADO            ${COLOR_RESET}"
+                echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+                echo -e " ${CYAN_INFO}➔${COLOR_RESET} REPLIQUE ESTE FLUJO EXACTO EN LOS NODOS DE RÉPLICA."
+                echo -e " ${CYAN_INFO}➔${COLOR_RESET} COMANDO DE INVOCACIÓN PARA EL ORQUESTADOR CENTRAL:"
+                echo -e "    ${VIVID_YELLOW}sudo bash ./orchest_business.sh${COLOR_RESET}\n"
+            else 
+                log_error "Montaje crítico no encontrado: $MOUNT_APP_SERV"
+                exit 1
+            fi
+
+            # PAUSA 3: Finalización del despliegue completo de aplicaciones antes de Observabilidad
+            press_to_continue
+
+            # --- OBSERVABILIDAD Y MÉTRICAS ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 4: INICIALIZACIÓN DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
-            echo "===================================================="
-            echo -e "\n[+] INVOCANDO LA CONFIGURACION DE OBSERVABILIDAD"
-            echo "===================================================="
+            log_info "Buscando scripts del recolector de métricas..."
             if [ -f "/opt/bash/metrics.sh" ]; then
+                log_info "Invocando la configuracion de observabilidad..."
                 sudo bash /opt/bash/metrics.sh
+                log_success "Ecosistema de observabilidad en línea."
             else
-                echo "Advertencia: El script de metricas no se encontró en /opt/bash/metrics.sh"
+                log_warning "Módulo de métricas omitido: /opt/bash/metrics.sh no existe."
             fi
 
             break
             ;;
             
         2)
-            echo -e "\n[+] Iniciando flujo de instalacion para srv replica..."
-            
-            echo "====================================================================================================="
-            echo -e "\nMI BRO, ANTES DE INICIAR VOY A REALIZAR UN SCANNER DEL AMBIENTE PARA VERIFICAR EL ESTADO ACTUAL"
-            echo "====================================================================================================="
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 1: CONFIGURACIÓN DEL NODO SEGUNDARIO (REPLICA)             ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-            echo -e "\n[--] Verificando el punto de montaje y paqueteria de postgres"
+            log_info "Evaluando punto de montaje del almacén de datos..."
             if [ -d "$MOUNT_APP_PSQ" ]; then 
-                
-                echo -e "\n[+] EL Punto de montaje y la paqueteria fueron detectadas con exito"
-                echo "--------------------------------------------------------------------"
-                echo "Iniciando el proceso de instalacion srv replica"
-                
-                echo -e "\n[+] Cargando Imagenes..."
+                log_success "Punto de montaje localizado en: $MOUNT_APP_PSQ"
                 
                 if [[ -z "$(sudo docker images -q $IMG_NAME_PG_R 2> /dev/null)" ]]; then
-                    echo "La imagen de replica no existe, Iniciando proceso de carga..." 
                     if [ -f "$IMAGE_PATH_PG_R" ]; then
-                        sudo docker load -i "$IMAGE_PATH_PG_R"
+                        echo -n "   Cargando imagen replicada distribuidor ($IMG_NAME_PG_R)..."
+                        sudo docker load -i "$IMAGE_PATH_PG_R" > /dev/null 2>&1 &
+                        spinner $!
                     else 
-                        echo "Error: La imagen no fue localizada en la ruta $IMAGE_PATH_PG_R"
+                        log_error "Imagen de réplica no localizada en: $IMAGE_PATH_PG_R"
                         exit 1
                     fi
                 else 
-                    echo "La imagen $IMG_NAME_PG_R ya existe. Omitiendo carga."
+                    log_success "La imagen de réplica de la base de datos ya está presente."
                 fi
 
-                echo "===================================================="
-                echo -e "\n[+] Configurando los directorios para los tblspc"
+                log_info "Configurando directorios y Storage Engine..."
                 sudo bash "${MOUNT_APP_PSQ}install-bd.sh"
-    
-                echo "==================================================================="
-                echo "CONFIGURACION FINALIZADA, DESPLIEGUE RESERVADO PARA EL ORQUESTADOR"
-                echo "==================================================================="
+                log_success "Estructura de directorios de persistencia de base de datos lista."
             else 
-                echo "MI BRO, NO LOGRAMOS DETECTAR EL PUNTO DE MONTAJE DE BD"
+                log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
             fi
 
-            # Instalación de kafka en Réplica
-            echo "======================================================="
-            echo -e "\n[+] INICIANDO CONFIGURACION DE KAFKA (REPLICA)"
-            echo "======================================================="
+            #  PAUSA RÉPLICA 1
+            press_to_continue
+
+            # --- KAFKA RÉPLICA ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 2: PROVISIÓN DEL BROKER EN RESPALDO (KAFKA RÉPLICA)         ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             if [ -d "$MOUNT_KAFKA" ]; then
-                echo -e "\n[+] EL Punto de montaje y la paqueteria fueron detectadas con exito"
-                echo "--------------------------------------------------------------------"
-                echo -e "\n[+] Cargando Imagenes de Kafka..."
-
+                log_success "Punto de montaje de Kafka verificado."
+                
                 if [[ -z "$(sudo docker images -q $IMG_NAME_KAFKA 2> /dev/null)" ]]; then 
-                    echo "La imagen no existe, Iniciando proceso de carga..."
                     if [ -f "$IMAGE_PATH_KAFKA" ]; then 
-                        sudo docker load -i "$IMAGE_PATH_KAFKA"
+                        echo -n "   Cargando imagen distribuida ($IMG_NAME_KAFKA)..."
+                        sudo docker load -i "$IMAGE_PATH_KAFKA" > /dev/null 2>&1 &
+                        spinner $!
                     else 
-                        echo "Error: La imagen no fue localizada en la ruta $IMAGE_PATH_KAFKA"
+                        log_error "Paquete Kafka ausente en la ruta: $IMAGE_PATH_KAFKA"
                         exit 1
                     fi
                 else 
-                    echo "La imagen $IMG_NAME_KAFKA ya existe. Omitiendo carga."
+                    log_success "Imagen de Kafka ya sincronizada."
                 fi 
 
-                # Gestion del directorio data
-                echo "===================================================="
-                echo -e "\n[+] Configurando repo de Meta data"
+                log_info "Preparando partición física y metadatos..."
                 if [ -d "$DATA_DIR" ]; then 
-                    echo "El directorio data ya existe. Liberando espacio..."
+                    log_warning "Directorio ocupado. Purgando datos antiguos..."
                     sudo rm -rf "$DATA_DIR"
                     sudo mkdir -p "$DATA_DIR"
-                    echo -e "\n[+] Espacio liberado"
-                    echo "-------------------------------------------------------"
-                    sudo df -h
-                    echo "-------------------------------------------------------"
                 else 
-                    echo -e "\n[Verificado:] Repo data no localizado. Creando..."
                     sudo mkdir -p "$DATA_DIR"
                 fi
 
-                # Aplicar permisos
-                echo "===================================================="
-                echo -e "\n[+] Aplicando los permisos necesarios"
+                log_info "Alineando políticas de acceso y propiedad (Chown)..."
                 sudo chown -R 1000:1000 "$MOUNT_KAFKA"
-                echo "Permisos aplicados con exito"
-                echo "===================================================="
+                log_success "Políticas aplicadas con éxito."
 
-                # Inicio de despliegue Kafka
-                echo "===================================================="
-                echo -e "\n[+] Iniciando Despliegue de Kafka"
+                log_info "Instanciando orquestación de clúster de mensajería (Kafka)..."
                 if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
-                    sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka
-                    sudo docker stack ps --no-trunc kafka
+                    echo -n "   Desplegando stack distribuido 'kafka'..."
+                    sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka > /dev/null 2>&1 &
+                    spinner $!
+                    sudo docker stack ps --no-trunc kafka | head -n 5
                 else 
-                    echo -e "\nEl stack de Kafka no esta en la ruta especificada"
+                    log_error "El manifiesto '/kafka/kafka/stack/kafka.yml' no fue localizado."
                     exit 1
                 fi
             else 
-                echo "MI BRO, NO LOGRAMOS DETECTAR EL PUNTO DE MONTAJE DE KAFKA, VAMOS A ABORTAR EL FLUJO"
+                log_error "Punto de montaje de Kafka ausente. Abortando flujo."
                 exit 1
             fi
 
-            # Configuración de Servicios SIMF
-            echo "======================================="
-            echo -e "\n[+] INICIANDO CONFIGURACION DE SIMF"
-            echo "======================================="
+            # PAUSA RÉPLICA 2
+            press_to_continue
+
+            # --- SERVICIOS RÉPLICA ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: ACOPLAMIENTO DE CAPA DE SERVICIOS EN RÉPLICA            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             if [ -d "$MOUNT_APP_SERV" ]; then 
-                echo -e "\n[+] EL Punto de montaje y la paqueteria fueron detectadas con exito"
-                echo "--------------------------------------------------------------------"
-                echo -e "\n[+] Cargando Imagenes SIMF..."
-
+                log_success "Punto de montaje verificado para servicios SIMF."
+                
                 if [[ -z "$(sudo docker images -q $IMG_NAME_SIMF_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SIMF_MS 2> /dev/null)" ]]; then 
-                    echo "Al menos una de las imagenes no existe. Iniciando el proceso de Carga..."
+                    log_warning "Detectada falta de imágenes del Core. Extrayendo archivos..."
 
                     if [ -f "$IMAGE_PATH_SIMF_REST" ] && [ -f "$IMAGE_PATH_SIMF_MS" ]; then
-                        echo "[->] Cargando REST API..."
-                        sudo docker load -i "$IMAGE_PATH_SIMF_REST"
+                        echo -n "   Desempaquetando Micro-API..."
+                        sudo docker load -i "$IMAGE_PATH_SIMF_REST" > /dev/null 2>&1 &
+                        spinner $!
 
-                        echo "[->] Cargando MS..."
-                        sudo docker load -i "$IMAGE_PATH_SIMF_MS"
+                        echo -n "   Desempaquetando Workers/MS..."
+                        sudo docker load -i "$IMAGE_PATH_SIMF_MS" > /dev/null 2>&1 &
+                        spinner $!
                     else 
-                        echo "Error: Uno o ambos archivos .tar no fueron localizados en las rutas."            
+                        log_error "Archivos .tar corruptos o no encontrados en las rutas especificadas."            
                         exit 1
                     fi
 
-                    echo "===================================================="
-                    echo -e "\n[--] Iniciando escaner de la red nginx_lbnet"
+                    log_info "Comprobando red interna compartida (nginx_lbnet)..."
                     if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                        echo "La red nginx_lbnet ya existe. Omitiendo paso"
+                        log_success "Estructura de red compartida activa."
                     else
-                        echo "La red no existe."
-                        echo -e "\n[+] Creando la red nginx_lbnet"
-                        sudo docker network create --driver overlay nginx_simf
-                        echo "La red ha sido creada con exito..."
+                        log_warning "Red ausente. Construyendo topología overlay..."
+                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                        log_success "Red superpuesta distribuida acoplada."
                     fi  
-
                 else 
-                    echo "Las imagenes ($IMG_NAME_SIMF_REST y $IMG_NAME_SIMF_MS) ya existen en el sistema. Omitiendo carga."
+                    log_success "Servicios ya sincronizados en el host de réplica."
                 fi 
 
-                echo "========================================================="
-                echo -e "\n[+] Proceso de configuracion srv replica finalizado"
-                echo "=========================================================================================================="
-                echo -e "\n[--] POR FAVOR REPLIQUE EL MISMO FLUJO DE CONFIGURACION EN EL SEGUNDO SRV REPLICA"
-                echo -e "[--] LUEGO DE HABER CONFIRMADO LA PERSISTENCIA DE LA CONFIGURACION EJECUTE EL ORQUESTADOR DE DESPLIEGUE"
-                echo "=========================================================================================================="
-                echo "[--] EJECUTE EL SIGUIENTE COMANDO PARA ACTIVAR EL ORQUESTADOR:"
-                echo -e "\nsudo bash ./orchest_business.sh"
-                echo "=================================================="
-                echo "DETALLES DEL ORQUESTADO (COMPONENTES DESPLEGADOS)"
-                echo "----------"
-                echo "[1] REPLICA"
-                echo "----------"
-                echo "[2] KAFKA"
-                echo "----------"
-                echo "[3] MS"
-                echo "=================================================="
+                echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+                echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE RÉPLICA COMPLETADO CON ÉXITO        ${COLOR_RESET}"
+                echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
             else 
-                echo "Error: El punto de montaje no fue encontrado: $MOUNT_APP_SERV"
+                log_error "Error del sistema de archivos en: $MOUNT_APP_SERV"
                 exit 1
             fi
 
@@ -382,12 +430,12 @@ while true; do
             ;;
             
         3)
-            echo -e "\n[-] Cerrando el asistente de instalacion. ¡Adios Papu!"
+            echo -e "\n${CRIMSON_RED}➔ Finalizando el instalador y cerrando conexiones del asistente de clúster. ¡Adios!${COLOR_RESET}"
             exit 0 
             ;;
             
         *) 
-            echo -e "\n[ERROR] '$opcion' no es una opcion valida, papu. Intentalo nuevamente.\n"
+            log_error "'$opcion' no coincide con ninguna opción disponible en el menú de clúster.\n"
             ;;
     esac
 done

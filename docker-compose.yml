@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  srv-master:
+    image: jrei/systemd-ubuntu:22.04
+    container_name: srv-master
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    ports:
+      - "2201:22"
+    networks:
+      lab-network:
+        ipv4_address: 10.5.0.10
+    # ---------------------------------------------------
+    # ASIGNACIÓN DE RECURSOS (Nodo Maestro: 2 Núcleos, 2GB RAM)
+    # ---------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'         # Límite máximo de CPUs que puede usar 
+          memory: 4096M       # Límite máximo de memoria RAM (2 Gigabytes)
+        reservations:
+          memory: 512M        # RAM mínima garantizada para este servidor al iniciar
+
+  srv-worker1:
+    image: jrei/systemd-ubuntu:22.04
+    container_name: worker1
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    ports:
+      - "2202:22"
+    networks:
+      lab-network:
+        ipv4_address: 10.5.0.11
+    # ---------------------------------------------------
+    # ASIGNACIÓN DE RECURSOS (Worker 1: 1 Núcleo, 1GB RAM)
+    # ---------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          memory: 256M
+
+  srv-worker2:
+    image: jrei/systemd-ubuntu:22.04
+    container_name: worker2
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    ports:
+      - "2203:22"
+    networks:
+      lab-network:
+        ipv4_address: 10.5.0.12
+    # ---------------------------------------------------
+    # ASIGNACIÓN DE RECURSOS (Worker 2: 1 Núcleo, 1GB RAM)
+    # ---------------------------------------------------
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          memory: 256M
+
+networks:
+  lab-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/24
