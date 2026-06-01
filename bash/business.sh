@@ -28,9 +28,11 @@ BUSINESS_01="negocio01"
 BUSINESS_02="negocio02"
 BUSINESS_03="negocio03"
 
-MOUNT_APP_PSQ="/app_psql/packague_bd/"
+PACKAGUE_V7="/opt/packague_v7.zip"
+MOUNT_APP_PSQ="/app_psql/"
 MOUNT_APP_SERV="/app_services/"
-MOUNT_KAFKA="/kafka/kafka/"
+MOUNT_KAFKA="/kafka/"
+MOUNT_METRICS="/metrics/"
 DATA_DIR="/kafka/kafka/data"
 
 IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
@@ -67,13 +69,65 @@ spinner() {
 }
 
 # ==============================================================================
-# FLUJO PRINCIPAL
+# FASE 0: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA
 # ==============================================================================
 clear
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}  ASISTENTE DE INSTALACIÓN AUTOMATIZADA - CLÚSTER DE NEGOCIO       ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}  PREPARANDO EL ENTORNO DE TRABAJO...                              ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
+log_info "Ejecutando escaneo de integridad en puntos de montaje..."
+
+PREEXISTING_CONFIG=true
+
+# Validamos la existencia de las carpetas internas críticas en los destinos
+[ ! -d "${MOUNT_APP_PSQ}packague_bd" ] && PREEXISTING_CONFIG=false
+[ ! -d "${MOUNT_KAFKA}kafka" ] && PREEXISTING_CONFIG=false
+[ ! -d "${MOUNT_METRICS}alloy" ] && PREEXISTING_CONFIG=false
+[ ! -d "${MOUNT_METRICS}service_discovery" ] && PREEXISTING_CONFIG=false
+
+if [ "$PREEXISTING_CONFIG" = true ]; then
+    log_success "Entorno previamente configurado detectado en los puntos de montaje."
+    log_info "Omitiendo descompresión de paquetería. Saltando directo al menú..."
+    sleep 1.5
+else
+    log_warning "Paquetería ausente o incompleta en puntos de montaje. Verificando origen..."
+    
+    if [ -f "$PACKAGUE_V7" ]; then 
+        log_success "Archivo comprimido detectado ($PACKAGUE_V7). Iniciando extracción..."
+        
+        # Descompresión en background mapeada al spinner
+        sudo unzip -q -o "$PACKAGUE_V7" -d /opt/ &
+        spinner $!
+
+        if [ -d "/opt/packague_v7/" ]; then 
+            log_info "Distribuyendo componentes del sistema en volúmenes persistentes..."
+            
+            # Corrección de sintaxis de variables de llaves corporativas a estándar Bash
+            sudo mv /opt/packague_v7/packague_bd/ "${MOUNT_APP_PSQ}"
+            sudo mv /opt/packague_v7/kafka/ "${MOUNT_KAFKA}"
+            sudo mv /opt/packague_v7/alloy/ "${MOUNT_METRICS}"
+            sudo mv /opt/packague_v7/service_discovery/ "${MOUNT_METRICS}"
+            
+            # Limpieza del residuo temporal de descompresión
+            sudo rm -rf /opt/packague_v7/
+            
+            log_success "Paquetería cargada y desplegada exitosamente en puntos de montaje."
+        else 
+            log_error "Fallo crítico: El directorio extraído /opt/packague_v7/ no existe o está corrupto."
+            exit 1
+        fi
+    else 
+        log_error "Error crítico: No se detectó el archivo fuente de paquetería en: $PACKAGUE_V7"
+        exit 1
+    fi 
+fi
+
+# ==============================================================================
+# INICIO DE BUCLE INTERACTIVO (MENÚ DE OPCIONES)
+# ==============================================================================
 while true; do
     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN:${COLOR_RESET}"
     echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Inicializar Servidor Principal (Primary Node)"
@@ -124,9 +178,9 @@ while true; do
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
-                sudo bash "${MOUNT_APP_PSQ}install-bd.sh"
+                sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
                 
-                log_info "Validando persistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
+                log_info "Validando resistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
                 if sudo docker secret inspect "$NAME_POSTGRES" >/dev/null 2>&1; then
                     log_success "Secret existente en el clúster. Omitiendo creación."
                 else 
@@ -154,9 +208,9 @@ while true; do
 
                 # --- DESPLIEGUE BD ---
                 log_info "Lanzando stack de base de datos..."
-                if [ -f "/app_psql/packague_bd/stack/primary-stack.yml" ]; then 
+                if [ -f "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" ]; then 
                     echo -n "   Desplegando stack 'bd-simf' en Swarm..."
-                    sudo docker stack deploy -c /app_psql/packague_bd/stack/primary-stack.yml bd-simf > /dev/null 2>&1 &
+                    sudo docker stack deploy -c "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" bd-simf > /dev/null 2>&1 &
                     spinner $!
                     sudo docker stack ps --no-trunc bd-simf | head -n 5
                 else 
@@ -228,7 +282,7 @@ while true; do
             # --- CONFIGURACIÓN DE SERVICIOS SIMF ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION DE APLICACIÓN (SIMF)                      ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACIÓN DE APLICACIÓN (SIMF)                      ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             log_info "Verificando punto de montaje de la capa de servicios..."
@@ -285,7 +339,7 @@ while true; do
             
             log_info "Buscando scripts del recolector de métricas..."
             if [ -f "/opt/bash/metrics.sh" ]; then
-                log_info "Invocando la configuracion de observabilidad..."
+                log_info "Invocando la configuración de observabilidad..."
                 sudo bash /opt/bash/metrics.sh
                 log_success "Ecosistema de observabilidad en línea."
             else
@@ -298,7 +352,7 @@ while true; do
         2)
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 1: CONFIGURACIÓN DEL NODO SEGUNDARIO (REPLICA)             ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 1: CONFIGURACIÓN DEL NODO SECUNDARIO (REPLICA)             ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             log_info "Evaluando punto de montaje del almacén de datos..."
@@ -319,7 +373,7 @@ while true; do
                 fi
 
                 log_info "Configurando directorios y Storage Engine..."
-                sudo bash "${MOUNT_APP_PSQ}install-bd.sh"
+                sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
                 log_success "Estructura de directorios de persistencia de base de datos lista."
             else 
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
@@ -363,7 +417,7 @@ while true; do
                 sudo chown -R 1000:1000 "$MOUNT_KAFKA"
                 log_success "Políticas aplicadas con éxito."
 
-                log_info "EL DESPLIEGUE DE KAFKA ESTA RESERVADO POR EL ORQUESTADOR CENTRAL"
+                log_info "EL DESPLIEGUE DE KAFKA ESTÁ RESERVADO POR EL ORQUESTADOR CENTRAL"
                 
             else 
                 log_error "Punto de montaje de Kafka ausente. Abortando flujo."
@@ -376,7 +430,7 @@ while true; do
             # --- SERVICIOS RÉPLICA ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION DE MS (SIMF)                      ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACIÓN DE MS (SIMF)                              ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             if [ -d "$MOUNT_APP_SERV" ]; then 
