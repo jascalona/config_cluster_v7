@@ -137,6 +137,27 @@ sudo bash orchestra_business.sh
             |--- sglpar_rest_api_0_2_2.tar
 
 
+### PACKAGE METRICS
+
+    # packgue service_discovery & alloy
+
+    /metrics/
+    |--- alloy/
+        --- observability.yml
+        --- config.alloy
+        --- alloy.tar
+        --- README.txt
+
+
+    # packague sglpar
+    /metrics/
+    |--- service_discovery/
+        --- Dockerfile
+        --- discovery-api
+        --- discovery-stack.yml
+        --- serve-discovery.tar
+
+
 
 
 
