@@ -307,7 +307,7 @@ while true; do
                 
                 if [[ -z "$(sudo docker images -q $IMG_NAME_PG_R 2> /dev/null)" ]]; then
                     if [ -f "$IMAGE_PATH_PG_R" ]; then
-                        echo -n "   Cargando imagen replicada distribuidor ($IMG_NAME_PG_R)..."
+                        echo -n "   Cargando imagen replicada ($IMG_NAME_PG_R)..."
                         sudo docker load -i "$IMAGE_PATH_PG_R" > /dev/null 2>&1 &
                         spinner $!
                     else 
@@ -363,16 +363,8 @@ while true; do
                 sudo chown -R 1000:1000 "$MOUNT_KAFKA"
                 log_success "Políticas aplicadas con éxito."
 
-                log_info "Instanciando orquestación de clúster de mensajería (Kafka)..."
-                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
-                    echo -n "   Desplegando stack distribuido 'kafka'..."
-                    sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka > /dev/null 2>&1 &
-                    spinner $!
-                    sudo docker stack ps --no-trunc kafka | head -n 5
-                else 
-                    log_error "El manifiesto '/kafka/kafka/stack/kafka.yml' no fue localizado."
-                    exit 1
-                fi
+                log_info "EL DESPLIEGUE DE KAFKA ESTA RESERVADO POR EL ORQUESTADOR CENTRAL"
+                
             else 
                 log_error "Punto de montaje de Kafka ausente. Abortando flujo."
                 exit 1
@@ -384,7 +376,7 @@ while true; do
             # --- SERVICIOS RÉPLICA ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: ACOPLAMIENTO DE CAPA DE SERVICIOS EN RÉPLICA            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION DE MS (SIMF)                      ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             if [ -d "$MOUNT_APP_SERV" ]; then 
