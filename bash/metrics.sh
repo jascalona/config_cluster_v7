@@ -4,7 +4,7 @@
 MOUNT_METRICS="/metrics/"
 
 # definicion de imagenes
-IMAGE_PATH_ALLOY="/metrics/Observ/alloy.tar"
+IMAGE_PATH_ALLOY="/metrics/alloy/alloy.tar"
 IMG_NAME_ALLOY="grafana/alloy:v1.16.1"
 
 IMAGE_PATH_DISCOVERY="/metrics/service_discovery/discovery-api.tar" 
@@ -17,7 +17,7 @@ echo "==========================================================================
 echo -e "\nMI BRO, ANTES DE INICIAR VOY A REALIZAR UN SCANNER DEL AMBIENTE PARA VERIFICAR EL ESTADO ACTUAL"
 echo "======================================================================================================"
 
-echo -e "\n[--] Verificando el punto de montaje y paquetería de Observ/alloy"
+echo -e "\n[--] Verificando el punto de montaje y paquetería de alloy"
 
 # Validacion del punto de montaje
 if [ -d "$MOUNT_METRICS" ]; then

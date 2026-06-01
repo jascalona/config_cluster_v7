@@ -13,7 +13,7 @@ while true; do
     echo "HOLA PAPU, BIENVENIDO AL MENU DE ORQUESTACION"
     echo "=============================================="
     echo "1) PARA EL DESPLIEGUE PG_ROLE (REPLICA)"
-    echo "2) PARA EL DESPLIEGUE DE KAFKITA"
+    echo "2) PARA EL DESPLIEGUE DE KAFKA"
     echo "3) PARA EL DESPLIEGUE DE LOS MS"
     echo "4) PARA EL DESPLIEGUE GLOBAL (SECUENCIAL CON PAUSAS)"
     echo "5) SALIR DEL FLUJO DE INSTALACION"
@@ -40,10 +40,10 @@ while true; do
         
         2)
             echo "===================================================="
-            echo "[+] INICIANDO EL DESPLIEGUE DEL COMPONENTE KAFKITA"
+            echo "[+] INICIANDO EL DESPLIEGUE DEL COMPONENTE KAFKA"
             echo "===================================================="
-            if [ -f "/kafka/kafka/stack/kafkita.yml" ]; then 
-                sudo docker stack deploy -c /kafka/kafka/stack/kafkita.yml kafka
+            if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
+                sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka
                 sudo docker stack ps --no-trunc kafka
             else 
                 echo -e "\n[x] EL STACK NO SE ENCONTRO EN LA RUTA ESPECIFICADA"
@@ -93,17 +93,17 @@ while true; do
 
             # Despliegue Kafkita
             echo -e "\n[2/3] Desplegando Cluster de Kafka..."
-            if [ -f "/kafka/kafka/stack/kafkita.yml" ]; then 
-                sudo docker stack deploy -c /kafka/kafka/stack/kafkita.yml kafka
+            if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
+                sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka
             else 
                 echo -e "\n[x] EL STACK DE KAFKA NO SE ENCONTRO"
                 exit 1
             fi
             
             # Pausa de tiempo para Kafka 
-            echo "Esperando 30 segundos para dar estabilidad a cada Broker de Kafkita..."
+            echo "Esperando 30 segundos para dar estabilidad a cada Broker de kafka..."
             sleep 30
-            echo -e "\n[+] Estado actual de Kafkita:"
+            echo -e "\n[+] Estado actual de kafka:"
             sudo docker stack ps kafka --no-trunc | head -n 5
 
 
@@ -118,7 +118,7 @@ while true; do
             
             echo "Esperando 10 segundos para dar estabilidad a los ms"
             sleep 30
-            echo -e "\n[+] Estado actual de Kafkita:"
+            echo -e "\n[+] Estado actual de kafka:"
             sudo docker stack ps simf --no-trunc | head -n 5
 
             echo "====================================================================="

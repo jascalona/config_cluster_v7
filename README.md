@@ -20,8 +20,8 @@ Antes de ejecutar los scripts, asegúrate de que los puntos de montaje existan e
 
 | Componente | Punto de Montaje Requerido | Archivo `.tar` Esperado |
 | :--- | :--- | :--- |
-| **PostgreSQL Primario** | `/app_psql/packague_bd/` | `simf-primary.tar` |
-| **PostgreSQL Réplica** | `/app_psql/packague_bd/` | `simf_replica.tar` |
+| **PostgreSQL Primario** | `/app_psql/packague_bd/` | `simf-primary.tar, simf_replica.tar` |
+
 | **Kafka Broker** | `/kafka/kafka/` | `images/projectsintel-kafka-simf-v7_1.0.2.tar` |
 | **Microservicios (SIMF)** | `/app_services/` | `app_simf/images/simf_rest_api_0_2_2.tar` <br> `app_simf/images/simf_ms_0_2_2.tar` |
 | **Observabilidad** | `/metrics/` | `Observ/alloy.tar` |
@@ -35,16 +35,16 @@ Antes de ejecutar los scripts, asegúrate de que los puntos de montaje existan e
 
 ## Procedimiento de Instalación (Paso a Paso)
 
-Sigue estrictamente este orden para garantizar que las dependencias de red, secretos y almacenamiento se creen correctamente.
+Sigue este orden para garantizar que las dependencias de red, secret y almacenamiento se creen correctamente.
 
 ### Paso 1: Configuración de Nodos de Negocio
 Ajuste el valor de los hostnames según corresponda a cada servidor dentro del script de configuración.
 
 **Ejemplo de configuración:**
 ```bash
-BUSINESS_01="bcvnegocio01"
-BUSINESS_02="bcvnegocio02"
-BUSINESS_03="bcvnegocio03"
+BUSINESS_01="nombre_ejemplo_01"
+BUSINESS_02="nombre_ejemplo_01"
+BUSINESS_03="nombre_ejemplo_01"
 ```
 
 ### Paso 2: Ejecute el script business.sh:
@@ -94,9 +94,9 @@ sudo bash orchestra_business.sh
             |--- replica-stack.yml
 
 
-### PACKAGE KAFKITA
+### PACKAGE KAFKA
 
-    # packgue kafkita
+    # packgue kafka
     /kafka
 
     |--- kafka/
@@ -107,7 +107,7 @@ sudo bash orchestra_business.sh
         --- images/
             |--- projectsintel-kafka-simf-v7_1.0.2.tar
         --- stack/
-            |--- kafkita.yml
+            |--- kafka.yml
 
 
 ### PACKAGE MS

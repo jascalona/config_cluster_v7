@@ -146,7 +146,7 @@ while true; do
 
             # Instalación de kafka
             echo "========================================"
-            echo -e "\n[+] INICIANDO CONFIGURACION DE KAFKITA"
+            echo -e "\n[+] INICIANDO CONFIGURACION DE KAFKA"
             echo "========================================"
 
             echo -e "\n[--] Verificando el punto de montaje y paqueteria de kafka"
@@ -259,7 +259,7 @@ while true; do
 
             # Instalación de kafka en Réplica
             echo "======================================================="
-            echo -e "\n[+] INICIANDO CONFIGURACION DE KAFKITA (REPLICA)"
+            echo -e "\n[+] INICIANDO CONFIGURACION DE KAFKA (REPLICA)"
             echo "======================================================="
 
             if [ -d "$MOUNT_KAFKA" ]; then
@@ -369,7 +369,7 @@ while true; do
                 echo "----------"
                 echo "[1] REPLICA"
                 echo "----------"
-                echo "[2] KAFKITA"
+                echo "[2] KAFKA"
                 echo "----------"
                 echo "[3] MS"
                 echo "=================================================="
