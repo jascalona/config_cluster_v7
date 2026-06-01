@@ -96,6 +96,24 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE KAFKA
 
+    # packgue pgagent
+    /app_psql
+
+    |--- pgagent/
+        --- pgagent.tar
+        --- pgagent-stack.yml
+        --- entrypoint.sh
+
+### SENTINEL (ESPERANDO POR LUIS)
+   
+   # packgue sentinel
+    /app_psql
+
+    |--- sentienl/
+        --- esperando_por_luis
+
+### PACKAGE KAFKA
+
     # packgue kafka
     /kafka
 
@@ -116,7 +134,7 @@ sudo bash orchestra_business.sh
 
     /app_services/
     |--- app_simf/
-        --- stack-simfcito.yml
+        --- stack-simf.yml
         --- comunes/
         --- credito/
         --- debito/
@@ -127,7 +145,7 @@ sudo bash orchestra_business.sh
 
     # packague sglpar
     |--- app_sglpar/
-        --- stack-sglparcito.yml
+        --- stack-sglpar.yml
         --- comunes/
         --- credito/
         --- debito/
@@ -153,7 +171,6 @@ sudo bash orchestra_business.sh
     /metrics/
     |--- service_discovery/
         --- Dockerfile
-        --- discovery-api
         --- discovery-stack.yml
         --- serve-discovery.tar
 

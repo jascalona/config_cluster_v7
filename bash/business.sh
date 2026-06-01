@@ -37,17 +37,33 @@ DATA_DIR="/kafka/kafka/data"
 
 IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
 IMAGE_PATH_PG_R="/app_psql/packague_bd/images/simf_replica.tar"
-IMAGE_PATH_SIMF_REST="/app_services/app_simf/images/simf_rest_api_0_2_2.tar"
-IMAGE_PATH_SIMF_MS="/app_services/app_simf/images/simf_ms_0_2_2.tar"
+IMAGE_PATH_PGAGENT="/app_psql/pgagent/pgagent.tar"
+
+
+IMAGE_PATH_SIMF_REST="/app_services/app_simf/image/simf_rest_api_0_2_2.tar"
+IMAGE_PATH_SIMF_MS="/app_services/app_simf/image/simf_ms_0_2_2.tar"
+
+IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sglpar_rest_api_0_2_2.tar"
+IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sglpar_ms_0_2_2.tar"
+
+
 IMAGE_PATH_KAFKA="/kafka/kafka/images/projectsintel-kafka-simf-v7_1.0.2.tar"
 
 IMG_NAME_PG_P="bd-simf:latest"
 IMG_NAME_PG_R="ibp_simf_replica:latest"
+IMG_NAME_PGAGENT="pg_pgagent:latest"
 IMG_NAME_KAFKA="projectsintel/kafka-simf-v7:1.0.2"
+
+# MS
 IMG_NAME_SIMF_REST="sycom/simf_rest_api:0.2.2"
 IMG_NAME_SIMF_MS="sycom/simf_ms:0.2.2"
 
+IMG_NAME_SGLPAR_REST="sycom/slgpar_rest_api:0.2.2"
+IMG_NAME_SGLPAR_MS="sycom/slgpar_ms:0.2.2"
+
+
 NAME_POSTGRES="postgre_password"
+NAME_PGAGENT="pgagent_pass"
 
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
@@ -225,10 +241,58 @@ while true; do
             #  PAUSA 1: Finalización de la Base de Datos antes de Kafka
             press_to_continue
 
-            # --- CONFIGURACIÓN DE KAFKA ---
+            # ---- CONFIGURACION DE PGAGENT ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 2: CONFIGURACIÓN Y DESPLIEGUE DEL BROKER (KAFKA)           ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 2: CONFIGURACION DEL (PGAGENT)                             ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            log_info "Verificando punto de montaje para pgagent"
+            if [ -d "$MOUNT_APP_PSQ" ]; then
+                log_success "Punto de montaje detectado para pgagent..."
+                
+                if [[ -z "$(sudo docker images -q $IMG_NAME_PGAGENT 2> /dev/null)" ]]; then
+                    if [ -f "$IMAGE_PATH_PGAGENT" ]; then 
+                        echo -n "   Cargando imagen de pgagent ($IMG_NAME_PGAGENT)..."
+                        sudo docker load -i "$IMG_NAME_PGAGENT" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PGAGENT"
+                        exit 1
+                    fi
+                else 
+                    log_success "La imagen $IMG_NAME_PGAGENT ya existe en el host."
+                fi 
+
+                # --- CONFIGURACIÓN E INYECCIÓN ---
+                log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
+                if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
+                    log_success "Secret existente en el clúster. Omitiendo creación."
+                else 
+                    log_warning "Secret no detectado. Iniciando inyección..."
+                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf'| sudo docker secret create pgagent_pass -
+                    sudo docker secret inspect "$NAME_PGAGENT" > /dev/null
+                    log_success "Secret creado exitosamente."
+                fi
+
+
+                log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
+                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_01" > /dev/null
+                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_02" > /dev/null
+                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_03" > /dev/null
+                log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
+
+            else 
+                log_error "El punto de montaje no fue localizado para este componente"
+            fi 
+            #  PAUSA PGAGENT
+            press_to_continue
+
+
+            # --- CONFIGURACION DE KAFKA ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION BROKER (KAFKA)                            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             log_info "Verificando punto de montaje para Kafka..."
@@ -282,7 +346,7 @@ while true; do
             # --- CONFIGURACIÓN DE SERVICIOS SIMF ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACIÓN DE APLICACIÓN (SIMF)                      ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 4: CONFIGURACION DE MS (SIMF)                              ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             log_info "Verificando punto de montaje de la capa de servicios..."
@@ -317,6 +381,40 @@ while true; do
                     log_success "Las imágenes del ecosistema SIMF ya están sincronizadas."
                 fi 
 
+
+            # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                log_info "Escaneando imagenes..."
+                if [[ -z "$(sudo docker images -q $IMG_NAME_SGLPAR_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SGLPAR_MS 2> /dev/null)" ]]; then 
+                    log_warning "Imágenes parciales o ausentes. Iniciando carga masiva..."
+
+                    if [ -f "$IMAGE_PATH_SGLPAR_REST" ] && [ -f "$IMAGE_PATH_SGLPAR_MS" ]; then
+                        echo -n "   Cargando paquete REST API ($IMG_NAME_SGLPAR_REST)..."
+                        sudo docker load -i "$IMAGE_PATH_SGLPAR_REST" > /dev/null 2>&1 &
+                        spinner $!
+
+                        echo -n "   Cargando paquete Microservicios ($IMG_NAME_SGLPAR_MS)..."
+                        sudo docker load -i "$IMAGE_PATH_SGLPAR_MS" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
+                        exit 1
+                    fi
+
+                    log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
+                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
+                        log_success "Red balanceadora 'nginx_lbnet' existente."
+                    else
+                        log_warning "Red perimetral ausente. Creando red del balanceador..."
+                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                        log_success "Segmentación perimetral configurada."
+                    fi  
+                else 
+                    log_success "Las imagenes del ecosistema SGLPAR ya están sincronizadas."
+                fi 
+
                 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NODO PRINCIPAL COMPLETADO            ${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
@@ -334,7 +432,7 @@ while true; do
             # --- OBSERVABILIDAD Y MÉTRICAS ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 4: INICIALIZACIÓN DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 5: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
             log_info "Buscando scripts del recolector de métricas..."
@@ -379,13 +477,61 @@ while true; do
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
             fi
 
-            #  PAUSA RÉPLICA 1
+            #  PAUSA REPLICA 1
             press_to_continue
+
+            # ---- CONFIGURACION DE PGAGENT ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 2: CONFIGURACION DEL (PGAGENT)                             ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            log_info "Verificando punto de montaje para pgagent"
+            if [ -d "$MOUNT_APP_PSQ" ]; then
+                log_success "Punto de montaje detectado para pgagent..."
+                
+                if [[ -z "$(sudo images -q $IMG_NAME_PGAGENT 2> /dev/null)" ]]; then
+                    if [ -f "$IMAGE_PATH_PGAGENT" ]; then 
+                        echo -n "   Cargando imagen de pgagent ($IMG_NAME_PGAGENT)..."
+                        sudo docker load -i "$IMG_NAME_PGAGENT" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PGAGENT"
+                        exit 1
+                    fi
+                else 
+                    log_success "La imagen $IMG_NAME_PGAGENT ya existe en el host."
+                fi 
+
+                # --- CONFIGURACIÓN E INYECCIÓN ---
+                log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
+                if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
+                    log_success "Secret existente en el clúster. Omitiendo creación."
+                else 
+                    log_warning "Secret no detectado. Iniciando inyección..."
+                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf'| sudo docker secret create pgagent_pass -
+                    sudo docker secret inspect "$NAME_PGAGENT" > /dev/null
+                    log_success "Secret creado exitosamente."
+                fi
+
+
+                log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
+                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_01" > /dev/null
+                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_02" > /dev/null
+                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_03" > /dev/null
+                log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
+
+            else 
+                log_error "El punto de montaje no fue localizado para este componente"
+            fi 
+            #  PAUSA PGAGENT
+            press_to_continue
+
 
             # --- KAFKA RÉPLICA ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 2: PROVISIÓN DEL BROKER EN RESPALDO (KAFKA RÉPLICA)         ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION BROKER (KAFKA REPLICAS)                   ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             if [ -d "$MOUNT_KAFKA" ]; then
@@ -430,7 +576,7 @@ while true; do
             # --- SERVICIOS RÉPLICA ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACIÓN DE MS (SIMF)                              ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 4: CONFIGURACION DE MS (SIMF)                              ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
             if [ -d "$MOUNT_APP_SERV" ]; then 
