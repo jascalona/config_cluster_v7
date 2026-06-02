@@ -28,7 +28,7 @@ BUSINESS_01="negocio01"
 BUSINESS_02="negocio02"
 BUSINESS_03="negocio03"
 
-PACKAGUE_V7="/opt/packague_v7.zip"
+PACKAGUE_V7="/opt/Install_v7/packague_v7.zip"
 MOUNT_APP_PSQ="/app_psql/"
 MOUNT_APP_SERV="/app_services/"
 MOUNT_KAFKA="/kafka/"
@@ -118,10 +118,10 @@ else
         log_success "Archivo comprimido detectado ($PACKAGUE_V7). Iniciando extracción..."
         
         # Descompresión en background mapeada al spinner
-        sudo unzip -q -o "$PACKAGUE_V7" -d /opt/ &
+        sudo unzip -q -o "$PACKAGUE_V7" -d /opt/Install_v7 &
         spinner $!
 
-        if [ -d "/opt/packague_v7/" ]; then 
+        if [ -d "/opt/Install_v7/packague_v7/" ]; then 
             log_info "Distribuyendo componentes del sistema en volúmenes persistentes..."
             
             # Corrección de sintaxis de variables de llaves corporativas a estándar Bash
@@ -155,7 +155,7 @@ fi
 while true; do
     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN:${COLOR_RESET}"
     echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Inicializar Servidor Principal (Primary Node)"
-    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Inicializar Servidor Réplica (Replica Node)"
+    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Inicializar Servidor RépGeneracion del lica (Replica Node)"
     echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Salir del Asistente"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
     
@@ -262,7 +262,7 @@ while true; do
                 if [[ -z "$(sudo docker images -q $IMG_NAME_PGAGENT 2> /dev/null)" ]]; then
                     if [ -f "$IMAGE_PATH_PGAGENT" ]; then 
                         echo -n "   Cargando imagen de pgagent ($IMG_NAME_PGAGENT)..."
-                        sudo docker load -i "$IMG_NAME_PGAGENT" > /dev/null 2>&1 &
+                        sudo docker load -i "$IMAGE_PATH_PGAGENT" > /dev/null 2>&1 &
                         spinner $!
                     else 
                         log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PGAGENT"
@@ -319,6 +319,18 @@ while true; do
                 else 
                     log_success "La imagen $IMG_NAME_KAFKA ya existe en el host."
                 fi 
+
+                
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                log_info -e "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
+                
+                if [ -f "/kakfka/kafka/stack/kafka.yml" ]; then
+                    log_info -e "APERTURANDO STACK DE KAFKA"
+                    sudo nano "/kakfka/kafka/stack/kafka.yml" 
+                else 
+                    log_error -e "[ERROR]: No fue localizado"
+                fi 
+
 
                 log_info "Validando infraestructura de red para telemetría y monitoreo..."
                 if sudo docker network inspect monitoring >/dev/null 2>&1; then
@@ -501,7 +513,7 @@ while true; do
                 if [[ -z "$(sudo images -q $IMG_NAME_PGAGENT 2> /dev/null)" ]]; then
                     if [ -f "$IMAGE_PATH_PGAGENT" ]; then 
                         echo -n "   Cargando imagen de pgagent ($IMG_NAME_PGAGENT)..."
-                        sudo docker load -i "$IMG_NAME_PGAGENT" > /dev/null 2>&1 &
+                        sudo docker load -i "$IMAGE_PATH_PGAGENT" > /dev/null 2>&1 &
                         spinner $!
                     else 
                         log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PGAGENT"

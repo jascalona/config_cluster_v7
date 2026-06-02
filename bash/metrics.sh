@@ -27,9 +27,10 @@ press_to_continue() {
 MOUNT_METRICS="/metrics/"
 
 IMAGE_PATH_ALLOY="/metrics/alloy/alloy.tar"
-IMG_NAME_ALLOY="grafana/alloy:v1.16.1"
-
 IMAGE_PATH_DISCOVERY="/metrics/service_discovery/discovery-api.tar" 
+
+
+IMG_NAME_ALLOY="grafana/alloy:v1.16.1"
 IMG_NAME_DISCOVERY="discovery-api:latest"
 
 # ==============================================================================
