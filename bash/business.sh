@@ -100,6 +100,9 @@ PREEXISTING_CONFIG=true
 
 # Validamos la existencia de las carpetas internas críticas en los destinos
 [ ! -d "${MOUNT_APP_PSQ}packague_bd" ] && PREEXISTING_CONFIG=false
+[ ! -d "${MOUNT_APP_PSQ}pgagent" ] && PREEXISTING_CONFIG=false
+[ ! -d "${MOUNT_APP_SERV}app_simf" ] && PREEXISTING_CONFIG=false
+[ ! -d "${MOUNT_APP_SERV}app_sglpar" ] && PREEXISTING_CONFIG=false
 [ ! -d "${MOUNT_KAFKA}kafka" ] && PREEXISTING_CONFIG=false
 [ ! -d "${MOUNT_METRICS}alloy" ] && PREEXISTING_CONFIG=false
 [ ! -d "${MOUNT_METRICS}service_discovery" ] && PREEXISTING_CONFIG=false
@@ -123,6 +126,11 @@ else
             
             # Corrección de sintaxis de variables de llaves corporativas a estándar Bash
             sudo mv /opt/packague_v7/packague_bd/ "${MOUNT_APP_PSQ}"
+            sudo mv /opt/packague_v7/pgagent/ "${MOUNT_APP_PSQ}"
+            
+            sudo mv /opt/packague_v7/app_simf/ "${MOUNT_APP_SERV}"
+            sudo mv /opt/packague_v7/app_sglpar/ "${MOUNT_APP_SERV}"
+            
             sudo mv /opt/packague_v7/kafka/ "${MOUNT_KAFKA}"
             sudo mv /opt/packague_v7/alloy/ "${MOUNT_METRICS}"
             sudo mv /opt/packague_v7/service_discovery/ "${MOUNT_METRICS}"
