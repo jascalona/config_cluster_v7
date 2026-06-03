@@ -47,7 +47,7 @@ while true; do
     echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Salir del Orquestador"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-    read -p "Seleccione una opción de control (1-5): " opcion
+    read -p "Seleccione una opción de control (1-7): " opcion
 
     case $opcion in 
         1)
@@ -70,6 +70,14 @@ while true; do
             log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
             sleep 2
+
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "VALIDACION DE BD"
+            
+            log_info "VERIFICANDO EL ESTADO DE LA BD"
+            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
+
+
             sudo docker service logs -f pg_replica_replica
             break
             ;;

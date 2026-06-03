@@ -28,6 +28,11 @@ BUSINESS_01="negocio01"
 BUSINESS_02="negocio02"
 BUSINESS_03="negocio03"
 
+
+ROUTE_CREATION_BD="/app_psql/packague_bd/creacion-bd"
+NAME_POSTGRES_CONF="postgresql.conf"
+
+
 PACKAGUE_V7="/opt/Install_v7/packague_v7.zip"
 MOUNT_APP_PSQ="/app_psql/"
 MOUNT_APP_SERV="/app_services/"
@@ -190,7 +195,7 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
 while true; do
     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN:${COLOR_RESET}"
     echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Inicializar Servidor Principal (Primary Node)"
-    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Inicializar Servidor RépGeneracion del lica (Replica Node)"
+    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Inicializar Servidor Replica (Replica Node)"
     echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Salir del Asistente"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
     
@@ -260,14 +265,20 @@ while true; do
                 log_success "TBPLSCP CREADOS CON EXITO"
 
 
+                # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Validando resistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
                 if sudo docker secret inspect "$NAME_POSTGRES" >/dev/null 2>&1; then
                     log_success "Secret existente en el clúster. Omitiendo creación."
                 else 
                     log_warning "Secret no detectado. Iniciando inyección..."
-                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf' | sudo docker secret create postgre_password -
-                    sudo docker secret inspect "$NAME_POSTGRES" > /dev/null
-                    log_success "Secret creado exitosamente."
+                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf' | sudo docker secret create "$NAME_POSTGRES" -
+                    
+                    if sudo docker secret inspect "$NAME_POSTGRES" > /dev/null 2>&1; then
+                        log_success "Secret '$NAME_POSTGRES' creado exitosamente."
+                    else
+                        log_error "Error crítico al crear el secreto '$NAME_POSTGRES'."
+                        exit 1
+                    fi
                 fi
 
                 log_info "Escaneando infraestructura de red del clúster (pg_net)..."
@@ -286,21 +297,85 @@ while true; do
                 sudo docker node update --label-add pg_role=replica "$BUSINESS_03" > /dev/null
                 log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
 
+
+            while true; do 
+            echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF:${COLOR_RESET}"
+            echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
+            echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
+            echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            
+            read -p "Seleccione el tipo de Infraestructura (1-3): " environment
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            
+            # Inicializamos variables vacías que se llenarán según el environment
+            SRC_FILE=""
+            INFRA_NAME=""
+
+            case $environment in 
+                1)
+                    SRC_FILE="postgresql_para24GB.conf"
+                    INFRA_NAME="Básica (24GB)"
+                    break
+                    ;;
+                2)
+                    SRC_FILE="postgresql_para32GB.conf"
+                    INFRA_NAME="Mediana (32GB)"
+                    break
+                    ;;
+                3)
+                    SRC_FILE="postgresql_para512GB.conf"
+                    INFRA_NAME="Extendida (512GB)"
+                    break
+                    ;;
+                *)
+                    log_error "'$environment' no coincide con ninguna opción disponible.\n"
+                    ;;
+            esac
+        done
+
+        # ==================================================================
+        # EJECUCIÓN DEL RENOMBRADO (LÓGICA CENTRALIZADA)
+        # ==================================================================
+        log_info "Has seleccionado una Infraestructura ${INFRA_NAME}"
+        log_info "Renombrando el fichero de configuración..."
+
+        # Esto renombra el archivo dentro de la misma ruta '/app_psql/packague_bd/creacion-bd'
+        sudo mv "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
+
+        log_info "¡Fichero renombrado correctamente a ${NAME_POSTGRES_CONF}!"
+            
                 # --- DESPLIEGUE BD ---
                 log_info "Lanzando stack de base de datos..."
                 if [ -f "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" ]; then 
-                    echo -n "   Desplegando stack 'bd-simf' en Swarm..."
-                    sudo docker stack deploy -c "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" bd-simf > /dev/null 2>&1 &
-                    spinner $!
-                    sudo docker stack ps --no-trunc bd-simf | head -n 5
+                    echo "Desplegando stack 'bd-simf' en Swarm..."
+                    
+                    sudo docker stack deploy -c "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" bd-simf                    
+                    if [ $? -eq 0 ]; then
+                        log_success "Orden de despliegue enviada correctamente."
+                        echo "   Esperando 5 segundos a que Swarm inicialice las tareas..."
+                        sleep 5
+                        echo -e "${BOLD}Estado inicial del Stack:${COLOR_RESET}"
+                        sudo docker stack ps --no-trunc bd-simf | head -n 5
+                    else
+                        log_error "Docker stack deploy falló al procesar el archivo del servicio."
+                        exit 1
+                    fi
                 else 
                     log_error "Manifiesto 'primary-stack.yml' no encontrado."
                     exit 1
-                fi 
+                fi
             else 
                 log_error "Punto de montaje de base de datos ausente de forma crítica. Abortando flujo."
                 exit 1
             fi
+
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "VALIDACION DE BD"
+            
+            log_info "VERIFICANDO EL ESTADO DE LA BD"
+            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
+
 
             #  PAUSA 1: Finalización de la Base de Datos antes de Kafka
             press_to_continue
@@ -540,6 +615,10 @@ while true; do
                 log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
             fi
 
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "LISTANDO IMAGENES"
+            sudo docker image ls
+
             break
             ;;
             
@@ -564,6 +643,21 @@ while true; do
                     fi
                 else 
                     log_success "La imagen de réplica de la base de datos ya está presente."
+                fi
+
+
+                log_info "CARAGANDO IMAGEN BD-SIMF PARA ALTA DISPONIBILIDAD"
+                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_P 2> /dev/null)" ]]; then
+                    if [ -f "$IMAGE_PATH_PG_P" ]; then
+                        echo -n "   Cargando imagen primaria ($IMG_NAME_PG_P)..."
+                        sudo docker load -i "$IMAGE_PATH_PG_P" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_P"
+                        exit 1
+                    fi
+                else 
+                    log_success "La imagen $IMG_NAME_PG_P ya se encuentra en el host."
                 fi
 
 
@@ -631,13 +725,6 @@ while true; do
                     log_success "Secret creado exitosamente."
                 fi
 
-
-                log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
-                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_01" > /dev/null
-                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_02" > /dev/null
-                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_03" > /dev/null
-                log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
-
             else 
                 log_error "El punto de montaje no fue localizado para este componente"
             fi 
@@ -667,7 +754,7 @@ while true; do
                     log_success "Imagen de Kafka ya sincronizada."
                 fi 
 
-                
+
                 echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
 
@@ -739,9 +826,63 @@ while true; do
                     log_success "Servicios ya sincronizados en el host de réplica."
                 fi 
 
+                
+            # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                log_info "Escaneando imagenes..."
+                if [[ -z "$(sudo docker images -q $IMG_NAME_SGLPAR_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SGLPAR_MS 2> /dev/null)" ]]; then 
+                    log_warning "Imágenes parciales o ausentes. Iniciando carga masiva..."
+
+                    if [ -f "$IMAGE_PATH_SGLPAR_REST" ] && [ -f "$IMAGE_PATH_SGLPAR_MS" ]; then
+                        echo -n "   Cargando paquete REST API ($IMG_NAME_SGLPAR_REST)..."
+                        sudo docker load -i "$IMAGE_PATH_SGLPAR_REST" > /dev/null 2>&1 &
+                        spinner $!
+
+                        echo -n "   Cargando paquete Microservicios ($IMG_NAME_SGLPAR_MS)..."
+                        sudo docker load -i "$IMAGE_PATH_SGLPAR_MS" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
+                        exit 1
+                    fi
+
+                    log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
+                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
+                        log_success "Red balanceadora 'nginx_lbnet' existente."
+                    else
+                        log_warning "Red perimetral ausente. Creando red del balanceador..."
+                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                        log_success "Segmentación perimetral configurada."
+                    fi  
+                else 
+                    log_success "Las imagenes del ecosistema SGLPAR ya están sincronizadas."
+                fi 
+
                 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE RÉPLICA COMPLETADO CON ÉXITO        ${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+
+                 # --- OBSERVABILIDAD Y MÉTRICAS ---
+                clear
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                echo -e "${DEEP_BLUE}${BOLD}  FASE 5: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                
+                log_info "Buscando scripts del recolector de métricas..."
+                if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
+                    log_info "Invocando la configuración de observabilidad..."
+                    sudo bash /opt/Install_v7/bash/metrics.sh
+                    log_success "Ecosistema de observabilidad en línea."
+                else
+                    log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
+                fi
+
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                log_success "LISTANDO IMAGENES"
+                sudo docker image ls
+
             else 
                 log_error "Error del sistema de archivos en: $MOUNT_APP_SERV"
                 exit 1
