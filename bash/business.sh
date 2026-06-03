@@ -249,15 +249,15 @@ while true; do
                 )
 
                 for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
-                    if [ -d "$mount_tblspc" ]; then
+                    if [ ! -d "$mount_tblspc" ]; then
                     log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
                     exit 1
                 fi 
                 done         
 
-                log_success -e "Puntos de montaje detectados para los tblspc "
+                log_success "Puntos de montaje detectados para los tblspc "
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
-                log_success -e "TBPLSCP CREADOS CON EXITO"
+                log_success "TBPLSCP CREADOS CON EXITO"
 
 
                 log_info "Validando resistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
@@ -360,15 +360,15 @@ while true; do
                 )
 
                 for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
-                    if [ -d "$mount_tblspc" ]; then
+                    if [ ! -d "$mount_tblspc" ]; then
                     log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
                     exit 1
                 fi 
                 done         
 
-                log_success -e "Puntos de montaje detectados para los tblspc "
+                log_success "Puntos de montaje detectados para los tblspc "
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
-                log_success -e "TBPLSCP CREADOS CON EXITO"
+                log_success "TBPLSCP CREADOS CON EXITO"
             fi 
             #  PAUSA PGAGENT
             press_to_continue
@@ -386,7 +386,7 @@ while true; do
                 
                 if [[ -z "$(sudo docker images -q $IMG_NAME_KAFKA 2> /dev/null)" ]]; then 
                     if [ -f "$IMAGE_PATH_KAFKA" ]; then 
-                        echo -n "   Cargando imagen de Kafka ($IMG_NAME_KAFKA)..."
+                        echo -n "Cargando imagen de Kafka ($IMG_NAME_KAFKA)..."
                         sudo docker load -i "$IMAGE_PATH_KAFKA" > /dev/null 2>&1 &
                         spinner $!
                     else 
@@ -398,16 +398,15 @@ while true; do
                 fi 
 
                 
-                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                log_info -e "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
-                
-                if [ -f "/kakfka/kafka/stack/kafka.yml" ]; then
-                    log_info -e "APERTURANDO STACK DE KAFKA"
-                    sudo nano "/kakfka/kafka/stack/kafka.yml" 
-                else 
-                    log_error -e "[ERROR]: No fue localizado"
-                fi 
+                echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
 
+                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
+                    log_info "APERTURANDO STACK DE KAFKA"
+                    sudo nano "/kafka/kafka/stack/kafka.yml" 
+                else 
+                    log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
+                fi
 
                 log_info "Validando infraestructura de red para telemetría y monitoreo..."
                 if sudo docker network inspect monitoring >/dev/null 2>&1; then
@@ -581,15 +580,15 @@ while true; do
                 )
 
                 for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
-                    if [ -d "$mount_tblspc" ]; then
+                    if [ ! -d "$mount_tblspc" ]; then
                     log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
                     exit 1
                 fi 
                 done         
 
-                log_success -e "Puntos de montaje detectados para los tblspc "
+                log_success "Puntos de montaje detectados para los tblspc "
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
-                log_success -e "TBPLSCP CREADOS CON EXITO"
+                log_success "TBPLSCP CREADOS CON EXITO"
 
             else 
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
@@ -667,6 +666,18 @@ while true; do
                 else 
                     log_success "Imagen de Kafka ya sincronizada."
                 fi 
+
+                
+                echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
+
+                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
+                    log_info "APERTURANDO STACK DE KAFKA"
+                    sudo nano "/kafka/kafka/stack/kafka.yml" 
+                else 
+                    log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
+                fi
+
 
                 log_info "Preparando partición física y metadatos..."
                 if [ -d "$DATA_DIR" ]; then 

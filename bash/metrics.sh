@@ -27,7 +27,7 @@ press_to_continue() {
 MOUNT_METRICS="/metrics/"
 
 IMAGE_PATH_ALLOY="/metrics/alloy/alloy.tar"
-IMAGE_PATH_DISCOVERY="/metrics/service_discovery/discovery-api.tar" 
+IMAGE_PATH_DISCOVERY="/metrics/service_discovery/serve-discovery.tar" 
 
 
 IMG_NAME_ALLOY="grafana/alloy:v1.16.1"
@@ -43,13 +43,12 @@ spinner() {
     tput civis  
     while [ "$(ps -p $pid -o pid=)" ]; do
         local temp=${spinstr#?}
-        printf " ${DEEP_BLUE}[%c]${COLOR_RESET}  Procesando, por favor espere..." "$spinstr"
+        printf "\r ${DEEP_BLUE}[%c]${COLOR_RESET}  Procesando, por favor espere..." "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" 
     done
     tput cnorm 
-    printf " ${NEON_GREEN}[OK]${COLOR_RESET}\n"
+    printf "\r\e[K ${NEON_GREEN}[OK]${COLOR_RESET}  Procesado con éxito.\n"
 }
 
 # ==============================================================================
@@ -69,25 +68,38 @@ if [ -d "$MOUNT_METRICS" ]; then
             
     log_info "Sincronizando registro local de imágenes en Docker Engine..."
     
-    # Validación de imágenes en caché de Docker
-    if [[ -z "$(sudo docker images -q $IMG_NAME_ALLOY 2>/dev/null)" || -z "$(sudo docker images -q $IMG_NAME_DISCOVERY 2>/dev/null)" ]]; then 
-        log_warning "Imágenes parciales o ausentes en el host. Iniciando carga masiva..."
-        
-        # Validamos que ambos archivos .tar existan en el disco antes de cargar
-        if [ -f "$IMAGE_PATH_ALLOY" ] && [ -f "$IMAGE_PATH_DISCOVERY" ]; then
+    # --------------------------------------------------------------------------
+    # GESTIÓN INDEPENDIENTE: GRAFANA ALLOY
+    # --------------------------------------------------------------------------
+    if [[ -z "$(sudo docker images -q "$IMG_NAME_ALLOY" 2>/dev/null)" ]]; then
+        log_warning "Grafana Alloy ausente en el host. Verificando distribución..."
+        if [ -f "$IMAGE_PATH_ALLOY" ]; then
             echo -n "   Cargando Grafana Alloy ($IMG_NAME_ALLOY)..."
             sudo docker load -i "$IMAGE_PATH_ALLOY" > /dev/null 2>&1 &
             spinner $!
-            
+        else
+            log_error "Archivo crítico ausente: $IMAGE_PATH_ALLOY"
+            exit 1
+        fi
+    else
+        log_success "Grafana Alloy ya se encuentra en el caché del sistema."
+    fi
+
+    # --------------------------------------------------------------------------
+    # GESTIÓN INDEPENDIENTE: SERVICE DISCOVERY API
+    # --------------------------------------------------------------------------
+    if [[ -z "$(sudo docker images -q "$IMG_NAME_DISCOVERY" 2>/dev/null)" ]]; then
+        log_warning "Service Discovery API ausente en el host. Verificando distribución..."
+        if [ -f "$IMAGE_PATH_DISCOVERY" ]; then
             echo -n "   Cargando Service Discovery API ($IMG_NAME_DISCOVERY)..."
             sudo docker load -i "$IMAGE_PATH_DISCOVERY" > /dev/null 2>&1 &
             spinner $!
-        else 
-            log_error "Falta uno o ambos archivos de distribución de métricas (.tar) en las rutas."
+        else
+            log_error "Archivo crítico ausente: $IMAGE_PATH_DISCOVERY"
             exit 1
         fi
-    else 
-        log_success "Las imágenes del stack (Alloy y Discovery) ya se encuentran en el caché del sistema."
+    else
+        log_success "Service Discovery API ya se encuentra en el caché del sistema."
     fi
 
     # --- BANNER DE CIERRE PROFESIONAL ---
