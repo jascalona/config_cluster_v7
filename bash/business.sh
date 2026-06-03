@@ -35,6 +35,14 @@ MOUNT_KAFKA="/kafka/"
 MOUNT_METRICS="/metrics/"
 DATA_DIR="/kafka/kafka/data"
 
+# PUNTOS DE MONTAJE PARA LOS TBLSPC
+MOUNT_TBLSPC_HISTO="/tblspc_historico"
+MOUNT_TBLSPC_TRAN="/tblspc_transaccional"
+MOUNT_TBLSPC_VIS="/tblspc_vistas"
+MOUNT_BACKUP="/backups"
+MOUNT_LOGS="/logs"
+MOUNT_OVERLAY="/overlay"
+
 IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
 IMAGE_PATH_PG_R="/app_psql/packague_bd/images/simf_replica.tar"
 IMAGE_PATH_PGAGENT="/app_psql/pgagent/pgagent.tar"
@@ -75,14 +83,15 @@ spinner() {
     tput civis  
     while [ "$(ps -p $pid -o pid=)" ]; do
         local temp=${spinstr#?}
-        printf " ${DEEP_BLUE}[%c]${COLOR_RESET}  Procesando, por favor espere..." "$spinstr"
+        printf "\r ${DEEP_BLUE}[%c]${COLOR_RESET}  Procesando, por favor espere..." "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" 
     done
     tput cnorm 
-    printf " ${NEON_GREEN}[OK]${COLOR_RESET}\n"
+    printf "\r\e[K ${NEON_GREEN}[OK]${COLOR_RESET}  Procesado con éxito.\n"
 }
+
+
 
 # ==============================================================================
 # FASE 0: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA
@@ -96,58 +105,84 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
 
 log_info "Ejecutando escaneo de integridad en puntos de montaje..."
 
-PREEXISTING_CONFIG=true
+# Definimos las rutas 
+TARGET_DIRS=(
+    "${MOUNT_APP_PSQ}packague_bd"
+    "${MOUNT_APP_PSQ}pgagent"
+    "${MOUNT_APP_SERV}app_simf"
+    "${MOUNT_APP_SERV}app_sglpar"
+    "${MOUNT_KAFKA}kafka"
+    "${MOUNT_METRICS}alloy"
+    "${MOUNT_METRICS}service_discovery"
+)
 
-# Validamos la existencia de las carpetas internas críticas en los destinos
-[ ! -d "${MOUNT_APP_PSQ}packague_bd" ] && PREEXISTING_CONFIG=false
-[ ! -d "${MOUNT_APP_PSQ}pgagent" ] && PREEXISTING_CONFIG=false
-[ ! -d "${MOUNT_APP_SERV}app_simf" ] && PREEXISTING_CONFIG=false
-[ ! -d "${MOUNT_APP_SERV}app_sglpar" ] && PREEXISTING_CONFIG=false
-[ ! -d "${MOUNT_KAFKA}kafka" ] && PREEXISTING_CONFIG=false
-[ ! -d "${MOUNT_METRICS}alloy" ] && PREEXISTING_CONFIG=false
-[ ! -d "${MOUNT_METRICS}service_discovery" ] && PREEXISTING_CONFIG=false
+PREEXISTING_CONFIG=false
+DIRS_TO_CLEAN=()
+
+# Escaneo preciso de qué existe y qué no
+for dir in "${TARGET_DIRS[@]}"; do
+    if [ -d "$dir" ]; then
+        PREEXISTING_CONFIG=true
+        DIRS_TO_CLEAN+=("$dir")
+    fi
+done
 
 if [ "$PREEXISTING_CONFIG" = true ]; then
-    log_success "Entorno previamente configurado detectado en los puntos de montaje."
-    log_info "Omitiendo descompresión de paquetería. Saltando directo al menú..."
+    log_warning "Se detectaron componentes de una instalación previa. Iniciando depuración..."
+    
+    # Depuramos de forma segura y específica solo lo que existe
+    for dir in "${DIRS_TO_CLEAN[@]}"; do
+        # Validación de seguridad: Evitar borrar la raíz si la variable está vacía
+        if [ -n "$dir" ] && [ "$dir" != "/" ]; then
+            log_info "Eliminando residuos en: $dir"
+            sudo rm -rf "$dir"
+        fi
+    done
+    
+    log_success "Depuración completada con éxito."
     sleep 1.5
 else
-    log_warning "Paquetería ausente o incompleta en puntos de montaje. Verificando origen..."
-    
-    if [ -f "$PACKAGUE_V7" ]; then 
+    log_info "Entorno limpio. No se encontraron configuraciones previas en los puntos de montaje."
+fi
+
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}  INICIANDO ENVIO DE PAQUETES                                     ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+  if [ -f "$PACKAGUE_V7" ]; then 
         log_success "Archivo comprimido detectado ($PACKAGUE_V7). Iniciando extracción..."
         
         # Descompresión en background mapeada al spinner
-        sudo unzip -q -o "$PACKAGUE_V7" -d /opt/Install_v7 &
+        sudo unzip -q -o "$PACKAGUE_V7" -d /opt/Install_v7/ &
         spinner $!
 
         if [ -d "/opt/Install_v7/packague_v7/" ]; then 
-            log_info "Distribuyendo componentes del sistema en volúmenes persistentes..."
+            log_info "Distribuyendo los paquetes en volúmenes persistentes..."
             
             # Corrección de sintaxis de variables de llaves corporativas a estándar Bash
-            sudo mv /opt/packague_v7/packague_bd/ "${MOUNT_APP_PSQ}"
-            sudo mv /opt/packague_v7/pgagent/ "${MOUNT_APP_PSQ}"
+            sudo mv /opt/Install_v7/packague_v7/packague_bd/ "${MOUNT_APP_PSQ}"
+            sudo mv /opt/Install_v7/packague_v7/pgagent/ "${MOUNT_APP_PSQ}"
             
-            sudo mv /opt/packague_v7/app_simf/ "${MOUNT_APP_SERV}"
-            sudo mv /opt/packague_v7/app_sglpar/ "${MOUNT_APP_SERV}"
-            
-            sudo mv /opt/packague_v7/kafka/ "${MOUNT_KAFKA}"
-            sudo mv /opt/packague_v7/alloy/ "${MOUNT_METRICS}"
-            sudo mv /opt/packague_v7/service_discovery/ "${MOUNT_METRICS}"
+            sudo mv /opt/Install_v7/packague_v7/app_simf/ "${MOUNT_APP_SERV}"
+            sudo mv /opt/Install_v7/packague_v7/app_sglpar/ "${MOUNT_APP_SERV}"
+
+            sudo mv /opt/Install_v7/packague_v7/kafka/ "${MOUNT_KAFKA}"
+            sudo mv /opt/Install_v7/packague_v7/alloy/ "${MOUNT_METRICS}"
+            sudo mv /opt/Install_v7/packague_v7/service_discovery/ "${MOUNT_METRICS}"
             
             # Limpieza del residuo temporal de descompresión
-            sudo rm -rf /opt/packague_v7/
+            sudo rm -rf /opt/Install_v7/packague_v7/
             
             log_success "Paquetería cargada y desplegada exitosamente en puntos de montaje."
         else 
-            log_error "Fallo crítico: El directorio extraído /opt/packague_v7/ no existe o está corrupto."
+            log_error "Fallo crítico: El directorio extraído /opt/Install_v7/packague_v7/ no existe o está corrupto."
             exit 1
         fi
     else 
         log_error "Error crítico: No se detectó el archivo fuente de paquetería en: $PACKAGUE_V7"
         exit 1
     fi 
-fi
+
 
 # ==============================================================================
 # INICIO DE BUCLE INTERACTIVO (MENÚ DE OPCIONES)
@@ -202,8 +237,29 @@ while true; do
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
+                log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
+                # Definicion de los puntos
+                TARGET_TBLSPC=(
+                    "$MOUNT_TBLSPC_HISTO"
+                    "$MOUNT_TBLSPC_TRAN"
+                    "$MOUNT_TBLSPC_VIS"
+                    "$MOUNT_BACKUP"
+                    "$MOUNT_LOGS"
+                    "$MOUNT_OVERLAY"
+                )
+
+                for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
+                    if [ -d "$mount_tblspc" ]; then
+                    log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
+                    exit 1
+                fi 
+                done         
+
+                log_success -e "Puntos de montaje detectados para los tblspc "
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
-                
+                log_success -e "TBPLSCP CREADOS CON EXITO"
+
+
                 log_info "Validando resistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
                 if sudo docker secret inspect "$NAME_POSTGRES" >/dev/null 2>&1; then
                     log_success "Secret existente en el clúster. Omitiendo creación."
@@ -291,7 +347,28 @@ while true; do
                 log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
 
             else 
-                log_error "El punto de montaje no fue localizado para este componente"
+                log_error "El punto de montaje no fue localizado para este componente"  log_info "Ejecutando aprovisionamiento de tablespaces..."
+                log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
+                # Definicion de los puntos
+                TARGET_TBLSPC=(
+                    "$MOUNT_TBLSPC_HISTO"
+                    "$MOUNT_TBLSPC_TRAN"
+                    "$MOUNT_TBLSPC_VIS"
+                    "$MOUNT_BACKUP"
+                    "$MOUNT_LOGS"
+                    "$MOUNT_OVERLAY"
+                )
+
+                for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
+                    if [ -d "$mount_tblspc" ]; then
+                    log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
+                    exit 1
+                fi 
+                done         
+
+                log_success -e "Puntos de montaje detectados para los tblspc "
+                sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
+                log_success -e "TBPLSCP CREADOS CON EXITO"
             fi 
             #  PAUSA PGAGENT
             press_to_continue
@@ -456,12 +533,12 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
             log_info "Buscando scripts del recolector de métricas..."
-            if [ -f "/opt/bash/metrics.sh" ]; then
+            if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
                 log_info "Invocando la configuración de observabilidad..."
-                sudo bash /opt/bash/metrics.sh
+                sudo bash /opt/Install_v7/bash/metrics.sh
                 log_success "Ecosistema de observabilidad en línea."
             else
-                log_warning "Módulo de métricas omitido: /opt/bash/metrics.sh no existe."
+                log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
             fi
 
             break
@@ -490,9 +567,30 @@ while true; do
                     log_success "La imagen de réplica de la base de datos ya está presente."
                 fi
 
-                log_info "Configurando directorios y Storage Engine..."
+
+                log_info "Ejecutando aprovisionamiento de tablespaces..."
+                log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
+                # Definicion de los puntos
+                TARGET_TBLSPC=(
+                    "$MOUNT_TBLSPC_HISTO"
+                    "$MOUNT_TBLSPC_TRAN"
+                    "$MOUNT_TBLSPC_VIS"
+                    "$MOUNT_BACKUP"
+                    "$MOUNT_LOGS"
+                    "$MOUNT_OVERLAY"
+                )
+
+                for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
+                    if [ -d "$mount_tblspc" ]; then
+                    log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
+                    exit 1
+                fi 
+                done         
+
+                log_success -e "Puntos de montaje detectados para los tblspc "
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
-                log_success "Estructura de directorios de persistencia de base de datos lista."
+                log_success -e "TBPLSCP CREADOS CON EXITO"
+
             else 
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
             fi
