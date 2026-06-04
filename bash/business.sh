@@ -36,7 +36,11 @@ NAME_POSTGRES_CONF="postgresql.conf"
 
 
 # paquetes de configuracion
-PACKAGUE_V7="/opt/Install_v7/packague_v7.zip"
+PACKAGUE_V7="/opt/Install_v7/package_business.zip"
+METRICS_V7="/opt/Install_v7/metrics.zip"
+
+
+
 MOUNT_APP_PSQ="/app_psql/"
 MOUNT_APP_SERV="/app_services/"
 MOUNT_KAFKA="/kafka/"
@@ -176,38 +180,47 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
 echo -e "${DEEP_BLUE}${BOLD}  INICIANDO ENVIO DE PAQUETES                                     ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-  if [ -f "$PACKAGUE_V7" ]; then 
-        log_success "Archivo comprimido detectado ($PACKAGUE_V7). Iniciando extracción..."
+if [[ -f "$PACKAGUE_V7" && -f "$METRICS_V7" ]]; then 
+    log_success "Archivos comprimidos detectados. Iniciando extracción..."
+    
+    # Descompresión en paralelo
+    sudo unzip -q -o "$PACKAGUE_V7" -d /opt/Install_v7/ &
+    pid1=$!
+    sudo unzip -q -o "$METRICS_V7" -d /opt/Install_v7/ &
+    pid2=$!
+
+    # Esperamos por ambos procesos mapeados al spinner (pasando ambos PIDs si tu función lo soporta, o esperando con wait)
+    wait $pid1 $pid2
+
+    if [[ -d "/opt/Install_v7/package_business/" ]]; then 
+        log_info "Distribuyendo los paquetes en volúmenes persistentes..."
         
-        # Descompresión en background mapeada al spinner
-        sudo unzip -q -o "$PACKAGUE_V7" -d /opt/Install_v7/ &
-        spinner $!
+        # Mover Base de Datos y agentes
+        sudo mv /opt/Install_v7/package_business/packague_bd/ "${MOUNT_APP_PSQ}"
+        sudo mv /opt/Install_v7/package_business/pgagent/ "${MOUNT_APP_PSQ}"
+        
+        # Mover Servicios de aplicación
+        sudo mv /opt/Install_v7/package_business/app_simf/ "${MOUNT_APP_SERV}"
+        sudo mv /opt/Install_v7/package_business/app_sglpar/ "${MOUNT_APP_SERV}"
 
-        if [ -d "/opt/Install_v7/packague_v7/" ]; then 
-            log_info "Distribuyendo los paquetes en volúmenes persistentes..."
-            
-            sudo mv /opt/Install_v7/packague_v7/packague_bd/ "${MOUNT_APP_PSQ}"
-            sudo mv /opt/Install_v7/packague_v7/pgagent/ "${MOUNT_APP_PSQ}"
-            
-            sudo mv /opt/Install_v7/packague_v7/app_simf/ "${MOUNT_APP_SERV}"
-            sudo mv /opt/Install_v7/packague_v7/app_sglpar/ "${MOUNT_APP_SERV}"
-
-            sudo mv /opt/Install_v7/packague_v7/kafka/ "${MOUNT_KAFKA}"
-            sudo mv /opt/Install_v7/packague_v7/alloy/ "${MOUNT_METRICS}"
-            sudo mv /opt/Install_v7/packague_v7/service_discovery/ "${MOUNT_METRICS}"
-            
-            # Limpieza del residuo temporal de descompresión
-            sudo rm -rf /opt/Install_v7/packague_v7/
-            
-            log_success "Paquetería cargada y desplegada exitosamente en puntos de montaje."
-        else 
-            log_error "Fallo crítico: El directorio extraído /opt/Install_v7/packague_v7/ no existe o está corrupto."
-            exit 1
-        fi
+        # Mover Infraestructura y Observabilidad (Kafka y Grafana Alloy / SD)
+        sudo mv /opt/Install_v7/package_business/kafka/ "${MOUNT_KAFKA}"
+        sudo mv /opt/Install_v7/metrics/alloy/ "${MOUNT_METRICS}"
+        sudo mv /opt/Install_v7/metrics/service_discovery/ "${MOUNT_METRICS}"
+        
+        # Limpieza del residuo temporal de descompresión de forma segura
+        sudo rm -rf /opt/Install_v7/package_business
+        sudo rm -rf /opt/Install_v7/metrics
+        
+        log_success "Paquetería cargada y desplegada exitosamente en puntos de montaje."
     else 
-        log_error "Error crítico: No se detectó el archivo fuente de paquetería en: $PACKAGUE_V7"
+        log_error "Fallo crítico: El directorio extraído /opt/Install_v7/package_business/ no existe o está corrupto."
         exit 1
-    fi 
+    fi
+else 
+    log_error "Error crítico: No se detectaron los archivos fuente de paquetería en: $PACKAGUE_V7 o $METRICS_V7"
+    exit 1
+fi
 
 
 # ==============================================================================
@@ -495,10 +508,40 @@ while true; do
                 
                 echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
-
-                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
+               
+              if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
-                    sudo nano "/kafka/kafka/stack/kafka.yml" 
+                    
+                    # Variable de control para manejar la apertura del archivo
+                    ABRIR_EDITOR=true
+
+                    while true; do
+                        # Solo abre nano si la bandera está en true
+                        if [ "$ABRIR_EDITOR" = true ]; then
+                            sudo nano "/kafka/kafka/stack/kafka.yml"
+                        fi
+
+                        # Preguntar si fueron finalizados los cambios
+                        echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
+                        read -r respuesta
+
+                        # Evaluacion de la respuesta 
+                        case "$respuesta" in
+                            [Yy]* | "")
+                                log_info "Edición completada por el usuario. Continuando el flujo de configuración..."
+                                break
+                                ;;
+                            [Nn]*)
+                                log_info "Aperturando nuevamente el fichero..."
+                                ABRIR_EDITOR=true  # Forzamos a que reabra en la siguiente iteración
+                                ;;
+                            *)
+                                echo -e "\nEpale papa, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                                ABRIR_EDITOR=false # Evita que abra nano, solo repetirá la pregunta
+                                ;;
+                        esac
+                    done
+
                 else 
                     log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
                 fi
@@ -774,35 +817,38 @@ while true; do
                     log_success "Imagen de Kafka ya sincronizada."
                 fi 
 
-
-                echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
-               
-                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
+if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
-                    while true; do
-                        # apertura del fichero
-                        sudo nano "/kafka/kafka/stack/kafka.yml"
+                    
+                    # Variable de control para manejar la apertura del archivo
+                    ABRIR_EDITOR=true
 
-                        # preguntar si fueron finalizados los cambios
-                        echo -e "\n¿Has terminado de ajustar el fichero? (y\n)"
+                    while true; do
+                        # Solo abre nano si la bandera está en true
+                        if [ "$ABRIR_EDITOR" = true ]; then
+                            sudo nano "/kafka/kafka/stack/kafka.yml"
+                        fi
+
+                        # Preguntar si fueron finalizados los cambios
+                        echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
                         read -r respuesta
 
-                        # evaluacion de la respuesta 
+                        # Evaluacion de la respuesta 
                         case "$respuesta" in
                             [Yy]* | "")
-                            log_info "Edicion completada por el usuario continuando el flujo de configuracion"
-                            break
-                            ;;
-                        [Nn]*)
-                            log_info "Aperturando nuevamente el fichero..."
-                            clear
-                            ;;
-                        *)
-                            echo "Epale papa, '$respuesta'esta opcion no es valida \n"
-                            ;;
-                    esac
-                done
+                                log_info "Edición completada por el usuario. Continuando el flujo de configuración..."
+                                break
+                                ;;
+                            [Nn]*)
+                                log_info "Aperturando nuevamente el fichero..."
+                                ABRIR_EDITOR=true  # Forzamos a que reabra en la siguiente iteración
+                                ;;
+                            *)
+                                echo -e "\nEpale papa, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                                ABRIR_EDITOR=false # Evita que abra nano, solo repetirá la pregunta
+                                ;;
+                        esac
+                    done
 
                 else 
                     log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"

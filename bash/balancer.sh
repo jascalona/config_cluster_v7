@@ -31,6 +31,8 @@ OBSERVABILITY="observabilidad"
 
 # paquetes de configuracion
 PACKAGE_OB="/opt/Install_v7/package_obser_and_balancer.zip"
+METRICS_V7="/opt/Install_v7/metrics.zip"
+
 
 # SECRET
 NAME_POOL="pgpool_passwd"
@@ -150,23 +152,24 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
 echo -e "${DEEP_BLUE}${BOLD}  INICIANDO ENVIO DE PAQUETES                                     ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-if [ -f "$PACKAGE_OB" ]; then
-    log_success "Archivo comprimido detectado ($PACKAGE_OB). Iniciando extraccion..."
+if [[ -f "$PACKAGE_OB" && -f "$METRICS_V7" ]]; then
+    log_success "Archivos comprimidos detectados. Iniciando extracción..."
 
     # descompresion en el background mapeada al spinner
     sudo unzip -q -o "$PACKAGE_OB" -d /opt/Install_v7/ &
-    spinner $!
+    pid1=$!
+    sudo unzip -q -o "$METRICS_V7" -d /opt/Install_v7/ &
+    pid2=$!
+
+    wait $pid1 $pid2
 
     if [ -d "/opt/Install_v7/package_obser_and_balancer/" ];then 
         log_info "Distribuyendo los paquetes en volumenes persistentes..."
 
         sudo mv /opt/Install_v7/package_obser_and_balancer/nginx/ "${MOUNT_BALANCER}"
         sudo mv /opt/Install_v7/package_obser_and_balancer/pgpool-conf/ "${MOUNT_BALANCER}"
-        if [ -d "/opt/Install_v7/package_obser_and_balancer/alloy/" ]; then
-            sudo mv /opt/Install_v7/package_obser_and_balancer/alloy/ "${MOUNT_METRICS}"
-        else
-            log_warning "Paquete alloy no incluido en el zip; metrics.sh puede omitir carga de imagen."
-        fi
+        sudo mv /opt/Install_v7/metrics/alloy/ "${MOUNT_METRICS}"
+        sudo mv /opt/Install_v7/metrics/service_discovery/ "${MOUNT_METRICS}"
 
         # Limpieza del residuo temporal del descompresion
         sudo rm -rf /opt/Install_v7/package_obser_and_balancer/
@@ -178,7 +181,7 @@ if [ -f "$PACKAGE_OB" ]; then
         exit 1
     fi
 else 
-    log_error "Error crítico: No se detectó el archivo fuente de paquetería en: $PACKAGE_OB"
+    log_error "Error crítico: No se detectó el archivo fuente de paquetería en: $PACKAGE_OB y $METRICS_V7"
     exit 1
 fi 
 
@@ -263,14 +266,15 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
         log_info "Mostrando las propiedades de la interfaz, por favor preste atención y copie el nombre de su interfaz"
         sudo ip -br a  # '-br' (brief) muestra de forma mucho más limpia y compacta las interfaces y sus IPs
         
-        countdown 30 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
+        countdown 15 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
         log_info "Iniciando la apertura del fichero para la actualizacion de su ip virtual y la interfaz de red"
 
-        while true; do
-            # Apertura del fichero
-            sudo nano "$PATH_KEEPALIVED_CONF"
+    while true; do
+    # Apertura del fichero
+    sudo nano "$PATH_KEEPALIVED_CONF"
 
-            # Preguntar si fueron finalizados los cambios
+        # Bucle interno: se repite hasta que el usuario dé una respuesta válida (y/n)
+        while true; do
             echo -e "\n¿Has terminado de ajustar el fichero? (y/n): "
             read -r respuesta
 
@@ -278,18 +282,19 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
             case "$respuesta" in
                 [Yy]* | "")
                     log_info "Edición completada por el usuario. Continuando el flujo."
-                    break
+                    break 2
                     ;;
                 [Nn]*)
                     log_info "Reaperturando el fichero..."
-                    clear
+                    break 
                     ;;
                 *)
-                    # Corregido el salto de línea y espacios
-                    echo -e "Épale papá, $respuesta no es una opción válida.\n"
+                    echo -e "Épale papá, \"$respuesta\" no es una opción válida. Intenta de nuevo.\n"
                     ;;
             esac
         done
+        done
+
     
         log_info "Realizando replicado de la configuracion en /etc/keepalived/"
         

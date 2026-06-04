@@ -49,7 +49,7 @@ while true; do
     echo -e "  ${DEEP_BLUE}9)${COLOR_RESET} Salir del Orquestador"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-    read -p "Seleccione una opción de control (1-7): " opcion
+    read -p "Seleccione una opción de control (1-9): " opcion
 
     case $opcion in 
         1)
