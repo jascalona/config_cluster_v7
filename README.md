@@ -175,13 +175,67 @@ sudo bash orchestra_business.sh
         --- serve-discovery.tar
 
 
+---
+
+## Configuracion de la paqueteria para los srv de balanceador
+
+### PACKAGE NGINX
+
+    # packgue nginx 
+    Esta distribucion debe ser persistida para ambos srv (observabilidad y balanceador)
+
+    /balancer/
+    |--- nginx/
+        --- simf/
+            |--- nginx-stack.yml
+            |--- nginx-optimized.conf (file dns conf)
+        --- keepalived/
+            |--- SRV01/
+                |--- keepalived.conf (file srv balancer)
+            |--- SRV05/
+                |--- keepalived.conf (file srv observability)
+            
 
 
+### PACKAGE PGPOOL
+
+    # packgue pgpool 
+    Esta distribucion debe ser persistida para ambos srv (observabilidad y balanceador)
+
+    /balancer/
+    |--- pgpool-config/
+        --- custom-entrypoint.sh/
+        --- failback.sh/
+        --- failover.sh
+        --- pcp.conf
+        --- .pcppass
+        --- pgpool.conf
+        --- .pgpoolkey
+        --- pgpool-stack.yml
+        --- pgpool.tar
+        --- pool_hba.conf
+        --- pool_passwd
 
 
+### SENTINEL (ESPERANDO POR LUIS)
+   
+   # packgue sentinel
+    /app_psql
+
+    |--- sentienl/
+        --- esperando_por_luis
 
 
+### PACKAGE METRICS
 
+    # packgue service_discovery & alloy
+
+    /metrics/
+    |--- alloy/
+        --- observability.yml
+        --- config.alloy
+        --- alloy.tar
+        --- README.txt
 
 
 ````

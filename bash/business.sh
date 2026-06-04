@@ -33,6 +33,7 @@ ROUTE_CREATION_BD="/app_psql/packague_bd/creacion-bd"
 NAME_POSTGRES_CONF="postgresql.conf"
 
 
+# paquetes de configuracion
 PACKAGUE_V7="/opt/Install_v7/packague_v7.zip"
 MOUNT_APP_PSQ="/app_psql/"
 MOUNT_APP_SERV="/app_services/"
@@ -133,9 +134,9 @@ for dir in "${TARGET_DIRS[@]}"; do
 done
 
 if [ "$PREEXISTING_CONFIG" = true ]; then
-    log_warning "Se detectaron componentes de una instalación previa. Iniciando depuración..."
+    log_warning "Se detectaron componentes de una configuracion previa. Iniciando depuración..."
     
-    # Depuramos de forma segura y específica solo lo que existe
+    # depuracion de los paquetes parceados
     for dir in "${DIRS_TO_CLEAN[@]}"; do
         # Validación de seguridad: Evitar borrar la raíz si la variable está vacía
         if [ -n "$dir" ] && [ "$dir" != "/" ]; then
@@ -164,7 +165,6 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
         if [ -d "/opt/Install_v7/packague_v7/" ]; then 
             log_info "Distribuyendo los paquetes en volúmenes persistentes..."
             
-            # Corrección de sintaxis de variables de llaves corporativas a estándar Bash
             sudo mv /opt/Install_v7/packague_v7/packague_bd/ "${MOUNT_APP_PSQ}"
             sudo mv /opt/Install_v7/packague_v7/pgagent/ "${MOUNT_APP_PSQ}"
             
@@ -290,9 +290,8 @@ while true; do
                     log_success "Red superpuesta distribuida creada correctamente."
                 fi  
 
-                log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
+                log_info "Injeccion de etiquetas (Labels) en nodos del Swarm..."
                 sudo docker node update --label-add pg_role=primary "$BUSINESS_01" > /dev/null
-                sudo docker node update --label-add role=bd-simf "$BUSINESS_01" > /dev/null
                 sudo docker node update --label-add pg_role=replica "$BUSINESS_02" > /dev/null
                 sudo docker node update --label-add pg_role=replica "$BUSINESS_03" > /dev/null
                 log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
