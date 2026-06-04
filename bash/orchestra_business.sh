@@ -289,7 +289,7 @@ while true; do
             # --- STEP 1: NGINX
             log_info "[Paso 1/2] Lanzando Nginx"
             if [ -f "/balancer/nginx/simf/nginx-optimized.conf" ]; then
-                sudo docker stack deploy -c /balancer/nginx/simf/nginx-optimized.conf nginx > /dev/null
+                sudo docker stack deploy -c /balancer/nginx/simf/nginx-stack.yml nginx > /dev/null
                 log_success "Instrucción de despliegue de Nginx enviada a la API de Swarm"
             else 
                 log_error "Manifiesto crítico ausente: '/balancer/nginx/simf/nginx-optimized.conf'"
