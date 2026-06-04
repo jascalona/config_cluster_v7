@@ -10,6 +10,8 @@ VIVID_YELLOW="\e[38;5;214m"
 CRIMSON_RED="\e[38;5;196m"
 CYAN_INFO="\e[38;5;51m"
 BOLD="\e[1m"
+MAGENTA='\033[1;35m'
+
 
 log_info()    { echo -e " ${CYAN_INFO}➔${COLOR_RESET} $1"; }
 log_success() { echo -e " ${NEON_GREEN}✔${COLOR_RESET} $1"; }
@@ -79,6 +81,9 @@ IMG_NAME_SGLPAR_MS="sycom/slgpar_ms:0.2.2"
 NAME_POSTGRES="postgre_password"
 NAME_PGAGENT="pgagent_pass"
 
+DAEMON_JSON="/etc/docker/daemon.json"
+
+
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
 # ==============================================================================
@@ -97,6 +102,22 @@ spinner() {
     printf "\r\e[K ${NEON_GREEN}[OK]${COLOR_RESET}  Procesado con éxito.\n"
 }
 
+
+# ==============================================================================
+# CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS Y MTU)
+# ==============================================================================
+echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local..."
+
+# Validamos si el archivo daemon.json ya contiene la configuración de ulimits
+if [ -f "$DAEMON_JSON" ] && grep -q "default-ulimits" "$DAEMON_JSON"; then
+    echo -e "${YELLOW} La configuración de ulimits/mtu ya existe en $DAEMON_JSON. Saltando..."
+else
+    echo "Aplicando optimización de nofile (65536) y MTU (1450) en el daemon local..."
+    sudo echo '{ "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }, "mtu": 1450 }' | sudo tee "$DAEMON_JSON" > /dev/null
+    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito."
+
+fi
+echo -e "-----------------------------------------------------------------"
 
 
 # ==============================================================================
@@ -266,7 +287,7 @@ while true; do
 
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
-                log_info "Validando resistencia de secretos en Docker Swarm ($NAME_POSTGRES)..."
+                log_info "Validando resistencia de secret en Docker Swarm ($NAME_POSTGRES)..."
                 if sudo docker secret inspect "$NAME_POSTGRES" >/dev/null 2>&1; then
                     log_success "Secret existente en el clúster. Omitiendo creación."
                 else 
@@ -281,13 +302,13 @@ while true; do
                     fi
                 fi
 
+                # CONFIGURACION DE LA RED PG_NET
                 log_info "Escaneando infraestructura de red del clúster (pg_net)..."
                 if sudo docker network inspect pg_net >/dev/null 2>&1; then
                     log_success "Red overlay 'pg_net' detectada."
                 else
                     log_warning "Red 'pg_net' ausente. Creando topología overlay..."
-                    sudo docker network create --driver overlay --subnet 10.0.10.0/24 --gateway 10.0.10.1 --attachable pg_net
-                    log_success "Red superpuesta distribuida creada correctamente."
+                    sudo docker network create --driver overlay --subnet 10.0.10.0/24 --gateway 10.0.10.1 --opt com.docker.network.driver.mtu=1450 --attachable pg_net                    log_success "Red superpuesta distribuida creada correctamente."
                 fi  
 
                 log_info "Injeccion de etiquetas (Labels) en nodos del Swarm..."
@@ -334,7 +355,7 @@ while true; do
         done
 
         # ==================================================================
-        # EJECUCIÓN DEL RENOMBRADO (LÓGICA CENTRALIZADA)
+        # (LÓGICA CENTRALIZADA)
         # ==================================================================
         log_info "Has seleccionado una Infraestructura ${INFRA_NAME}"
         log_info "Renombrando el fichero de configuración..."
@@ -775,7 +796,7 @@ while true; do
                             ;;
                         [Nn]*)
                             log_info "Aperturando nuevamente el fichero..."
-                            clean
+                            clear
                             ;;
                         *)
                             echo "Epale papa, '$respuesta'esta opcion no es valida \n"

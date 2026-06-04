@@ -10,6 +10,7 @@ VIVID_YELLOW="\e[38;5;214m"
 CRIMSON_RED="\e[38;5;196m"
 CYAN_INFO="\e[38;5;51m"
 BOLD="\e[1m"
+MAGENTA='\033[1;35m'
 
 log_info()    { echo -e " ${CYAN_INFO}➔${COLOR_RESET} $1"; }
 log_success() { echo -e " ${NEON_GREEN}✔${COLOR_RESET} $1"; }
@@ -31,6 +32,10 @@ OBSERVABILITY="observabilidad"
 # paquetes de configuracion
 PACKAGE_OB="/opt/Install_v7/package_obser_and_balancer.zip"
 
+# SECRET
+NAME_POOL="pgpool_passwd"
+NAME_POOLKEY="pgpoolkey"
+
 
 # PUNTOS DE MONTAJE BALANCEADOR
 MOUNT_BALANCER="/balancer/"
@@ -39,11 +44,15 @@ MOUNT_LOGS="/logs/"
 MOUNT_OVERLAY="/overlay/"
 
 # ruta de la imagen
-IMAGE_PATH_NGINX="/balancer/"
+
+IMAGE_PATH_NGINX="/balancer/nginx/simf/nginx.tar"
+IMAGE_PATH_POOL="/balancer/pgpool-conf/pgpool.tar"
 
 # nombre imagen
-IMG_NAME_NGINX="bd-simf:latest"
+IMG_NAME_NGINX="nginx:1.27"
+IMG_NAME_POOL="pgpool/pgpool:latest"
 
+DAEMON_JSON="/etc/docker/daemon.json"
 
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
@@ -51,7 +60,7 @@ IMG_NAME_NGINX="bd-simf:latest"
 spinner() {
     local pid=$1
     local delay=0.1
-    local spinstr='|/-\'
+    local spinstr="|/-\\"
     tput civis  
     while [ "$(ps -p $pid -o pid=)" ]; do
         local temp=${spinstr#?}
@@ -76,13 +85,29 @@ countdown() {
 }
 
 # ==============================================================================
-# FASE 0: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA
+# CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS Y MTU)
+# ==============================================================================
+echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local...${COLOR_RESET}"
+
+# Validamos si el archivo daemon.json ya contiene la configuración de ulimits
+if [ -f "$DAEMON_JSON" ] && grep -q "default-ulimits" "$DAEMON_JSON"; then
+    echo -e "${VIVID_YELLOW} La configuración de ulimits/mtu ya existe en $DAEMON_JSON. Saltando..."
+else
+    echo "Aplicando optimización de nofile (65536) y MTU (1450) en el daemon local..."
+    sudo echo '{ "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }, "mtu": 1450 }' | sudo tee "$DAEMON_JSON" > /dev/null
+    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito.${COLOR_RESET}"
+
+fi
+echo -e "-----------------------------------------------------------------"
+
+# ==============================================================================
+# FASE 1: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA
 # ==============================================================================
 clear
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}  ASISTENTE DE INSTALACIÓN AUTOMATIZADA - BALANCEADOR DE CARGA    ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${DEEP_BLUE}${BOLD}  PREPARANDO EL ENTORNO DE TRABAJO...                              ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD} FASE 1: PREPARANDO EL ENTORNO DE TRABAJO...                              ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
 log_info "Ejecutando escaneo de integridad en puntos de montaje..."
@@ -136,8 +161,12 @@ if [ -f "$PACKAGE_OB" ]; then
         log_info "Distribuyendo los paquetes en volumenes persistentes..."
 
         sudo mv /opt/Install_v7/package_obser_and_balancer/nginx/ "${MOUNT_BALANCER}"
-        sudo mv /opt/Install_v7/package_obser_and_balancer/pgpool-conf/ "{$MOUNT_BALANCER}"
-        sudo mv /opt/Install_v7/package_obser_and_balancer/alloy/ {"$MOUNT_METRICS"}
+        sudo mv /opt/Install_v7/package_obser_and_balancer/pgpool-conf/ "${MOUNT_BALANCER}"
+        if [ -d "/opt/Install_v7/package_obser_and_balancer/alloy/" ]; then
+            sudo mv /opt/Install_v7/package_obser_and_balancer/alloy/ "${MOUNT_METRICS}"
+        else
+            log_warning "Paquete alloy no incluido en el zip; metrics.sh puede omitir carga de imagen."
+        fi
 
         # Limpieza del residuo temporal del descompresion
         sudo rm -rf /opt/Install_v7/package_obser_and_balancer/
@@ -153,114 +182,234 @@ else
     exit 1
 fi 
 
-
 # ==============================================================================
-# INICIO DE LA CONFIGURACION PARA EL BALANCEADOR DE CARGA
+# INICIO DE LA CONFIGURACION DEL NGINX
 # ==============================================================================
 clear
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}  FASE 2: CONFIGURACION DEL NGINX                                 ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+log_info "Verificando paqueteria"
+if [ -d "${MOUNT_BALANCER}nginx" ]; then
+    log_success "Paqueteria detectada"
+
+    log_info "Verificacion de imagen"
+       if [[ -z "$(sudo docker image -q $IMG_NAME_NGINX 2> /dev/null)" ]]; then
+           log_info "La imagen no existe en este nodo, verificando (.tar)"
+           if [ -f "$IMAGE_PATH_NGINX" ]; then
+               log_warning "Cargando Imagen" 
+               sudo docker load -i "$IMAGE_PATH_NGINX" > /dev/null 2>&1 &
+               spinner $!
+           else
+               log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_NGINX"
+           fi
+       else 
+           log_info "La imagen ($IMG_NAME_NGINX) ya existe, Omitiendo este paso..."
+       fi
+
+
+    # --- INYECCIÓN DE LABELS ---
+    log_info "Inyeccion de etiquetas (labels)"
+    sudo docker node update --label-add type=balanceador "$BALANCER" 2> /dev/null 
+    sudo docker node update --label-add type=balanceador "$OBSERVABILITY" 2> /dev/null
+    log_success "Labels asignados a los nodos: $BALANCER, $OBSERVABILITY"
+
+    # Lista de paquetes verificar/instalar
     echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-    echo -e "${DEEP_BLUE}${BOLD}  FASE 1: ESCANEO Y VERIFICACIÓN DEL BALANCEADOR DE CARGA         ${COLOR_RESET}"
+    echo -e "\n${BOLD}Verificando keepalived"
     echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-    log_info "Verificando el punto de montaje balancer"
-    if [ -d "$MOUNT_BALANCER" ]; then
-        log_success "Punto de montaje detectado"
-
-        # --- INYECCIÓN DE LABELS ---
-        log_info "Injeccion de etiquetas (labels)"
-        sudo docker node update --label-add type=balanceador "$BALANCER" 2> /dev/null 
-        sudo docker node update --label-add type=balanceador "$OBSERVABILITY" 2> /dev/null
-        log_success "Labels asignados a los nodos: $BALANCER, $OBSERVABILITY"
+    PACKAGES=(keepalived)
     
-        # agregar logica para la configuracion de la ip virtual
+    # Determinar si necesitamos correr apt update (solo si falta algún paquete)
+    NEED_UPDATE=false
+    for pkg in "${PACKAGES[@]}"; do
+        if ! command -v "$pkg" &> /dev/null; then
+            NEED_UPDATE=true
+            break
+        fi
+    done
 
-        # Lista de paquetes verificar/instalar
-        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-        echo -r "\n${BOLD}Verificando keepalived"
-        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    if [ "$NEED_UPDATE" = true ]; then
+        log_info "Actualizando índices de paquetes..."
+        sudo apt update -y
+    fi
 
-        PACKAGES=(keepalived)
-
-        echo "Iniciando verificación de los paquetes..."
-
-        for pkg in "${PACKAGES[@]}"; do
-            #  verifica si el comando existe en el sistema
-            if ! command -v "$pkg" &> /dev/null; then
-                echo "[-] $pkg no encontrado. Instalando..."
-                sudo apt update
-                sudo apt install -y "$pkg"
-            
-                log_success "Paquete instalado con exito"
-                echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
-                log_info "Iniciando el inicio del servicio"
-                sudo systemctl enable --now keepalived
-            else
-                log_info "$pkg ya está instalado. Omitiendo este paso."
-            fi
-        done
-
-        log_success "¡Proceso finalizado!"
-
-        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-        echo -r "\n${BOLD} INICIANDO APERTURA DEL FICHERO PARA EL AJUSTE DE LA INTERFAZ Y LA IP VIRTUAL"
-        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    for pkg in "${PACKAGES[@]}"; do
+        if ! command -v "$pkg" &> /dev/null; then
+            echo "[-] $pkg no encontrado. Instalando..."
+            sudo apt install -y "$pkg"
         
-        if [ -f "${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf" ]; then
+            log_success "Paquete $pkg instalado con exito"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            log_info "Activando e iniciando el servicio de $pkg"
+            sudo systemctl enable --now "$pkg"
+        else
+            log_info "$pkg ya está instalado. Omitiendo este paso."
+        fi
+    done
 
-            log_info "Mostrando las propiedades de la interfaz, por favor preste y copie el nombre de su interfaz"
-            sudo ip a
-            countdown 30 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
-            log_info "Iniciando la apertura del fichero para la actualizacion de su ip vertual y la interfaz de red"
+    log_success "¡Verificacion de paquetes finalizada!"
 
-            while true; do
-                # apertura del fichero
-                sudo nano "${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf"
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "\n${BOLD} INICIANDO APERTURA DEL FICHERO PARA EL AJUSTE DE LA INTERFAZ Y LA IP VIRTUAL"
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    
+    PATH_KEEPALIVED_CONF="${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf"
 
-                # preguntar si fueron finalizados los cambios
-                echo -e "\n¿Has terminado de ajustar el fichero? (y\n)"
-                read -r respuesta
+    if [ -f "$PATH_KEEPALIVED_CONF" ]; then
 
-                # evaluacion de la respuesta 
-                case "$respuesta" in
-                    [Yy]* | "")
-                    log_info "Edicion completada por el usuario continuando el flujo de configuracion"
+        log_info "Mostrando las propiedades de la interfaz, por favor preste atención y copie el nombre de su interfaz"
+        sudo ip -br a  # '-br' (brief) muestra de forma mucho más limpia y compacta las interfaces y sus IPs
+        
+        countdown 30 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
+        log_info "Iniciando la apertura del fichero para la actualizacion de su ip virtual y la interfaz de red"
+
+        while true; do
+            # Apertura del fichero
+            sudo nano "$PATH_KEEPALIVED_CONF"
+
+            # Preguntar si fueron finalizados los cambios
+            echo -e "\n¿Has terminado de ajustar el fichero? (y/n): "
+            read -r respuesta
+
+            # Evaluación de la respuesta 
+            case "$respuesta" in
+                [Yy]* | "")
+                    log_info "Edición completada por el usuario. Continuando el flujo."
                     break
                     ;;
                 [Nn]*)
-                    log_info "Aperturando nuevamente el fichero..."
-                    clean
+                    log_info "Reaperturando el fichero..."
+                    clear
                     ;;
                 *)
-                    echo "Epale papa, '$respuesta'esta opcion no es valida \n"
+                    # Corregido el salto de línea y espacios
+                    echo -e "Épale papá, $respuesta no es una opción válida.\n"
                     ;;
-                esac
-            done
+            esac
+        done
+    
+        log_info "Realizando replicado de la configuracion en /etc/keepalived/"
         
-            log_info "Realizando replicado de la configuracion en /etc/"
-            if [ -f "/etc/keepalived/" ]; then
-                sudo cp "${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf" /etc/keepalived
-                sudo ls /etc/keepalived/
-                log_success "Fichero replicado con exito"
-            else 
-                log_error "[Error]: No se detecto el directororio de (keepalived)"
-            fi 
+        # En vez de fallar si no existe, lo creamos de forma segura
+        if [ ! -d "/etc/keepalived" ]; then
+            log_info "Creando directorio /etc/keepalived estructural..."
+            sudo mkdir -p /etc/keepalived
+        fi
 
-        else 
-            log_info "[ERROR]: No fue localizado el fichero de configuracion en el punto de montaje"
-        fi 
-    
+        sudo cp "$PATH_KEEPALIVED_CONF" /etc/keepalived/
+        sudo ls -la /etc/keepalived/
+        log_success "Fichero replicado con éxito en el sistema"
+
     else 
-        log_error "El punto de montaje "$MOUNT_BALANCER" no fue detectado"
-        exit 1
-    fi
+        log_error "[ERROR]: No fue localizado el fichero de configuración en: $PATH_KEEPALIVED_CONF"
+    fi 
 
-    
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NGINX FINALIZADO                     ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
-     #  PAUSA 2: Finalización del la configuracion del nginx
+    # PAUSA 2: Finalización de la configuración
     press_to_continue
 
+else 
+    log_error "La paquetería de nginx en '${MOUNT_BALANCER}nginx' no fue detectada"
+    exit 1
+fi
+
+
+# ==============================================================================
+# INICIO DE LA CONFIGURACION DEL POOL
+# ==============================================================================
+clear
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}  FASE 3: CONFIGURACION DEL POOL                                  ${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+    log_info "Verificando paqueteria"
+    if [ -d "${MOUNT_BALANCER}pgpool-conf/" ]; then
+        log_success "Paqueteria detectada"
+        
+        log_info "Verificacion de imagen"
+        if [[ -z "$(sudo docker image -q $IMG_NAME_POOL 2> /dev/null)" ]]; then
+            log_info "La imagen no existe en este nodo, verificando"
+            if [ -f "$IMAGE_PATH_POOL" ]; then
+                log_warning "Cargando Imagen" 
+                sudo docker load -i "$IMAGE_PATH_POOL" > /dev/null 2>&1 &
+                spinner $!
+            else
+                log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_POOL"
+            fi
+        else 
+            log_info "La imagen ($IMG_NAME_POOL) ya existe, Omitiendo este paso..."
+        fi
+
+        # --- CONFIGURACIÓN E INYECCIÓN ---
+        log_info "Validando existencia de secrets en Docker Swarm..."
+        if sudo docker secret inspect "$NAME_POOL" >/dev/null 2>&1 \
+            && sudo docker secret inspect "$NAME_POOLKEY" >/dev/null 2>&1; then
+            log_success "Secrets existentes en el clúster. Omitiendo creación."
+        else
+            log_warning "Secrets no detectados. Iniciando inyección..."
+            if ! sudo docker secret inspect "$NAME_POOL" >/dev/null 2>&1; then
+                sudo cat "${MOUNT_BALANCER}pgpool-conf/pool_passwd" | sudo docker secret create "$NAME_POOL" -
+            fi
+            if ! sudo docker secret inspect "$NAME_POOLKEY" >/dev/null 2>&1; then
+                sudo cat "${MOUNT_BALANCER}pgpool-conf/.pgpoolkey" | sudo docker secret create "$NAME_POOLKEY" -
+            fi
+
+            if sudo docker secret inspect "$NAME_POOL" >/dev/null 2>&1 \
+                && sudo docker secret inspect "$NAME_POOLKEY" >/dev/null 2>&1; then
+                log_success "Secrets '$NAME_POOL' y '$NAME_POOLKEY' creados exitosamente."
+            else
+                log_error "Error crítico al crear el secret '$NAME_POOL' y/o '$NAME_POOLKEY'."
+                exit 1
+            fi
+        fi
+
+        # INJECCION DE LABELS
+        log_info "Injeccion de etiquetas (Labels) en nodos del Swarm..."
+        sudo docker node update --label-add pg_role=pool "$BALANCER" > /dev/null
+        sudo docker node update --label-add pg_role=pool "$OBSERVABILITY" > /dev/null
+        log_success "Labels asignados a los nodos: $BALANCER, $OBSERVABILITY."
+        log_info "Listando labels..."
+        sudo docker secret ls
+
+
+        log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
+        echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+        echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL POOL FINALIZADO                     ${COLOR_RESET}"
+        echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
+
+        #  PAUSA 2: Finalización del la configuracion del pool
+        press_to_continue
+
+    else
+        log_error "La paqueteria '${MOUNT_BALANCER}pgpool-conf' no fue detectada"
+    fi
+
+    # --- OBSERVABILIDAD Y MÉTRICAS ---
+    clear
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}  FASE 4: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+        
+    log_info "Buscando scripts del recolector de métricas..."
+    if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
+        log_info "Invocando la configuración de observabilidad..."
+        sudo bash /opt/Install_v7/bash/metrics.sh
+        log_success "Ecosistema de observabilidad en línea."
+    else
+        log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
+    fi
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    log_success "LISTANDO IMAGENES"
     
+    sudo docker image ls
+    echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL BALANCEADOR                         ${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+        

@@ -189,6 +189,7 @@ sudo bash orchestra_business.sh
         --- simf/
             |--- nginx-stack.yml
             |--- nginx-optimized.conf (file dns conf)
+            |--- nginx-optimized_ip.conf (file ip static)
         --- keepalived/
             |--- SRV01/
                 |--- keepalived.conf (file srv balancer)
