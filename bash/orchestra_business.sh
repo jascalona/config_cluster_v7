@@ -71,8 +71,10 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
             sleep 2
 
+            countdown 60 "Estabilizando la replica"
+
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            log_success "VALIDACION DE BD"
+            log_success "VERIFICACION DE LA REPLICA"
             
             log_info "VERIFICANDO EL ESTADO DE LA BD"
             PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
@@ -197,9 +199,9 @@ while true; do
                 exit 1
             fi
             
-            countdown 30 "Estabilizando motor e inicializando TableSpaces de PostgreSQL"
-            echo -e "\n${BOLD} Verificación de salud (Database):${COLOR_RESET}"
-            sudo docker stack ps pg_replica --no-trunc | head -n 4
+            countdown 60 "Estabilizando la replica"
+            echo -e "\n${BOLD} Verificando replica):${COLOR_RESET}"
+            sudo docker stack ps pg_replica ndoo-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
             

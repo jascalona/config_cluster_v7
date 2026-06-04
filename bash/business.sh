@@ -756,10 +756,33 @@ while true; do
 
                 echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
-
+               
                 if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
-                    sudo nano "/kafka/kafka/stack/kafka.yml" 
+                    while true; do
+                        # apertura del fichero
+                        sudo nano "/kafka/kafka/stack/kafka.yml"
+
+                        # preguntar si fueron finalizados los cambios
+                        echo -e "\n¿Has terminado de ajustar el fichero? (y\n)"
+                        read -r respuesta
+
+                        # evaluacion de la respuesta 
+                        case "$respuesta" in
+                            [Yy]* | "")
+                            log_info "Edicion completada por el usuario continuando el flujo de configuracion"
+                            break
+                            ;;
+                        [Nn]*)
+                            log_info "Aperturando nuevamente el fichero..."
+                            clean
+                            ;;
+                        *)
+                            echo "Epale papa, '$respuesta'esta opcion no es valida \n"
+                            ;;
+                    esac
+                done
+
                 else 
                     log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
                 fi

@@ -63,6 +63,17 @@ spinner() {
     printf "\r\e[K ${NEON_GREEN}[OK]${COLOR_RESET}  Procesado con éxito.\n"
 }
 
+# Función para barra de progreso temporal en los sleeps
+countdown() {
+    local secs=$1
+    local msg=$2
+    while [ $secs -gt 0 ]; do
+        printf "\r ${VIVID_YELLOW}${COLOR_RESET} $msg... Esperando %02ds " "$secs"
+        sleep 1
+        : $((secs--))
+    done
+    printf "\r ${NEON_GREEN}✔${COLOR_RESET} $msg... ¡Tiempo cumplido!     \n"
+}
 
 # ==============================================================================
 # FASE 0: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA
@@ -162,11 +173,94 @@ clear
         log_success "Labels asignados a los nodos: $BALANCER, $OBSERVABILITY"
     
         # agregar logica para la configuracion de la ip virtual
+
+        # Lista de paquetes verificar/instalar
+        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+        echo -r "\n${BOLD}Verificando keepalived"
+        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+        PACKAGES=(keepalived)
+
+        echo "Iniciando verificación de los paquetes..."
+
+        for pkg in "${PACKAGES[@]}"; do
+            #  verifica si el comando existe en el sistema
+            if ! command -v "$pkg" &> /dev/null; then
+                echo "[-] $pkg no encontrado. Instalando..."
+                sudo apt update
+                sudo apt install -y "$pkg"
+            
+                log_success "Paquete instalado con exito"
+                echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+                log_info "Iniciando el inicio del servicio"
+                sudo systemctl enable --now keepalived
+            else
+                log_info "$pkg ya está instalado. Omitiendo este paso."
+            fi
+        done
+
+        log_success "¡Proceso finalizado!"
+
+        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+        echo -r "\n${BOLD} INICIANDO APERTURA DEL FICHERO PARA EL AJUSTE DE LA INTERFAZ Y LA IP VIRTUAL"
+        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+        
+        if [ -f "${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf" ]; then
+
+            log_info "Mostrando las propiedades de la interfaz, por favor preste y copie el nombre de su interfaz"
+            sudo ip a
+            countdown 30 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
+            log_info "Iniciando la apertura del fichero para la actualizacion de su ip vertual y la interfaz de red"
+
+            while true; do
+                # apertura del fichero
+                sudo nano "${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf"
+
+                # preguntar si fueron finalizados los cambios
+                echo -e "\n¿Has terminado de ajustar el fichero? (y\n)"
+                read -r respuesta
+
+                # evaluacion de la respuesta 
+                case "$respuesta" in
+                    [Yy]* | "")
+                    log_info "Edicion completada por el usuario continuando el flujo de configuracion"
+                    break
+                    ;;
+                [Nn]*)
+                    log_info "Aperturando nuevamente el fichero..."
+                    clean
+                    ;;
+                *)
+                    echo "Epale papa, '$respuesta'esta opcion no es valida \n"
+                    ;;
+                esac
+            done
+        
+            log_info "Realizando replicado de la configuracion en /etc/"
+            if [ -f "/etc/keepalived/" ]; then
+                sudo cp "${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf" /etc/keepalived
+                sudo ls /etc/keepalived/
+                log_success "Fichero replicado con exito"
+            else 
+                log_error "[Error]: No se detecto el directororio de (keepalived)"
+            fi 
+
+        else 
+            log_info "[ERROR]: No fue localizado el fichero de configuracion en el punto de montaje"
+        fi 
     
     else 
         log_error "El punto de montaje "$MOUNT_BALANCER" no fue detectado"
         exit 1
     fi
 
+    
+    log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
+    echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NGINX FINALIZADO                     ${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
-        
+     #  PAUSA 2: Finalización del la configuracion del nginx
+    press_to_continue
+
+    
