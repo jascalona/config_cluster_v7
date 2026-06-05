@@ -321,7 +321,8 @@ while true; do
                     log_success "Red overlay 'pg_net' detectada."
                 else
                     log_warning "Red 'pg_net' ausente. Creando topología overlay..."
-                    sudo docker network create --driver overlay --subnet 10.0.10.0/24 --gateway 10.0.10.1 --opt com.docker.network.driver.mtu=1450 --attachable pg_net                    log_success "Red superpuesta distribuida creada correctamente."
+                    sudo docker network create --driver overlay --subnet 10.0.10.0/24 --gateway 10.0.10.1 --opt com.docker.network.driver.mtu=1450 --attachable pg_net
+                    log_success "Red superpuesta distribuida creada correctamente."
                 fi  
 
                 log_info "Injeccion de etiquetas (Labels) en nodos del Swarm..."
