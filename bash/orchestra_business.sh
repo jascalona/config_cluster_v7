@@ -233,7 +233,7 @@ while true; do
                 exit 1
             fi
             
-            countdown 30 "Sincronizando la topología y cuórum de Brokers (Zookeeper/Kafka)"
+            countdown 30 "Sincronizando la topología y cuórum de Brokers (Kafka)"
             echo -e "\n${BOLD} Verificación de salud (Kafka Cluster):${COLOR_RESET}"
             sudo docker stack ps kafka --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"

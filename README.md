@@ -75,7 +75,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE BD
 
-    # packgue bd-simf & pg_replica
+    # package bd-simf & pg_replica
     /app_psql
 
     |--- packague_bd/
@@ -96,7 +96,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE KAFKA
 
-    # packgue pgagent
+    # package pgagent
     /app_psql
 
     |--- pgagent/
@@ -106,7 +106,7 @@ sudo bash orchestra_business.sh
 
 ### SENTINEL (ESPERANDO POR LUIS)
    
-   # packgue sentinel
+   # package sentinel
     /app_psql
 
     |--- sentienl/
@@ -114,7 +114,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE KAFKA
 
-    # packgue kafka
+    # package kafka
     /kafka
 
     |--- kafka/
@@ -130,7 +130,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE MS
 
-    # packgue simf
+    # package simf
 
     /app_services/
     |--- app_simf/
@@ -143,7 +143,7 @@ sudo bash orchestra_business.sh
             |--- simf_ms_0_2_2.tar
             |--- simf_rest_api_0_2_2.tar
 
-    # packague sglpar
+    # package sglpar
     |--- app_sglpar/
         --- stack-sglpar.yml
         --- comunes/
@@ -157,7 +157,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE METRICS
 
-    # packgue service_discovery & alloy
+    # package service_discovery & alloy
 
     /metrics/
     |--- alloy/
@@ -167,7 +167,7 @@ sudo bash orchestra_business.sh
         --- README.txt
 
 
-    # packague sglpar
+    # package sglpar
     /metrics/
     |--- service_discovery/
         --- Dockerfile
@@ -181,7 +181,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE NGINX
 
-    # packgue nginx 
+    # package nginx 
     Esta distribucion debe ser persistida para ambos srv (observabilidad y balanceador)
 
     /balancer/
@@ -200,7 +200,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE PGPOOL
 
-    # packgue pgpool 
+    # package pgpool 
     Esta distribucion debe ser persistida para ambos srv (observabilidad y balanceador)
 
     /balancer/
@@ -220,7 +220,7 @@ sudo bash orchestra_business.sh
 
 ### SENTINEL (ESPERANDO POR LUIS)
    
-   # packgue sentinel
+   # package sentinel
     /app_psql
 
     |--- sentienl/
@@ -229,7 +229,7 @@ sudo bash orchestra_business.sh
 
 ### PACKAGE METRICS
 
-    # packgue service_discovery & alloy
+    # package service_discovery & alloy
 
     /metrics/
     |--- alloy/
@@ -238,6 +238,58 @@ sudo bash orchestra_business.sh
         --- alloy.tar
         --- README.txt
 
+
+
+---
+
+## Configuracion de la paqueteria para el srv de observabilidad
+
+### PACKAGE OBSERVABILIDAD
+
+    # package prometheus
+    /core
+
+    |--- prometheus/
+        --- alerting-rules/
+            |--- alerting-rules.tgz
+        --- auth/
+            |--- admin.password
+            |--- auth.tgz
+        --- config/
+            |--- prometheus.yml
+            |--- web.yml
+        --- data
+            |--- 01KTC7X0861TF2G1NEVA8YD2M2/
+            |--- chunks_head/
+            |--- lock
+            |--- queries.active
+            |--- wal/
+        --- imagenes
+            |--- prom-prometheus-v2.52.0.tar
+        --- stacks
+            |--- stack-prometheus.yml
+
+
+    # package loki y minio
+    /core
+
+    |--- loki/
+        --- configs/
+            |--- loki-config.yml*
+            |--- alerting-rules.tgz
+        --- images/
+            |--- grafana-loki-2.9.5.tar
+        --- config/
+            |--- prometheus.yml
+            |--- web.yml
+        --- stack/
+            |--- stack-loki.yml
+        --- loki_data # (meta data de loki)
+
+    /storage_minio (la paqueteria es gestionada por loki)
+
+    |--- minio-sha13582eff.tar
+    |--- minio_data
 
 ````
 ### IGNORAR DE AQUI HACIA ABAJO, YA QUE ES UNA CONFIG DE UN LABORATORIO DE JOSE

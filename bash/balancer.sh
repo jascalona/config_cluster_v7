@@ -56,6 +56,9 @@ IMG_NAME_POOL="pgpool/pgpool:latest"
 
 DAEMON_JSON="/etc/docker/daemon.json"
 
+MOUNT_VALIDATION="/core"
+
+
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
 # ==============================================================================
@@ -118,6 +121,7 @@ TARGET_DIRS=(
     "${MOUNT_BALANCER}nginx"
     "${MOUNT_BALANCER}pgpool-conf"
     "${MOUNT_METRICS}alloy"
+    "${MOUNT_METRICS}service_discovery"
 )
 
 PREEXISTING_CONFIG=false
@@ -258,59 +262,77 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
     echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
     echo -e "\n${BOLD} INICIANDO APERTURA DEL FICHERO PARA EL AJUSTE DE LA INTERFAZ Y LA IP VIRTUAL"
     echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-    
-    PATH_KEEPALIVED_CONF="${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf"
 
-    if [ -f "$PATH_KEEPALIVED_CONF" ]; then
+    PATH_KEEPALIVED_SRV01="${MOUNT_BALANCER}nginx/keepalived/SRV01/keepalived.conf"
+    PATH_KEEPALIVED_SRV05="${MOUNT_BALANCER}nginx/keepalived/SRV05/keepalived.conf"
+
+    if [ -d "/balancer/nginx/keepalived/" ]; then
 
         log_info "Mostrando las propiedades de la interfaz, por favor preste atención y copie el nombre de su interfaz"
-        sudo ip -br a  # '-br' (brief) muestra de forma mucho más limpia y compacta las interfaces y sus IPs
+        sudo ip -br a  
         
         countdown 15 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
         log_info "Iniciando la apertura del fichero para la actualizacion de su ip virtual y la interfaz de red"
-
-    while true; do
-    # Apertura del fichero
-    sudo nano "$PATH_KEEPALIVED_CONF"
-
-        # Bucle interno: se repite hasta que el usuario dé una respuesta válida (y/n)
-        while true; do
-            echo -e "\n¿Has terminado de ajustar el fichero? (y/n): "
-            read -r respuesta
-
-            # Evaluación de la respuesta 
-            case "$respuesta" in
-                [Yy]* | "")
-                    log_info "Edición completada por el usuario. Continuando el flujo."
-                    break 2
-                    ;;
-                [Nn]*)
-                    log_info "Reaperturando el fichero..."
-                    break 
-                    ;;
-                *)
-                    echo -e "Épale papá, \"$respuesta\" no es una opción válida. Intenta de nuevo.\n"
-                    ;;
-            esac
-        done
-        done
-
-    
-        log_info "Realizando replicado de la configuracion en /etc/keepalived/"
+        log_info "COPIE EL NOMBRE DE LA INTERFAZ DE SU IP FISICA"
         
-        # En vez de fallar si no existe, lo creamos de forma segura
+        echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+        log_info "INICIANDO EVALUACION DEL AMBIENTE PARA LA DISTRIBUCION DE LA CONFIGURACION PARA KEEPALIVED"
+
+        VG_NAME="vg-core"
+        
+        # Evaluacion del Grupo de volumen
+        if ! sudo vgs "$VG_NAME" >/dev/null 2>&1; then
+            log_info "EL ASISTENTE DETECTO QUE ESTE SERVIDOR ES DE TIPO: (BALANCEADOR DE CARGA)"
+            FICHERO_TARGET="$PATH_KEEPALIVED_SRV01"
+            TEXTO_REPLICA="SRV01"
+        else 
+            log_info "EL ASISTENTE DETECTO QUE ESTE SERVIDOR ES DE TIPO: (OBSERVABILIDAD)"
+            FICHERO_TARGET="$PATH_KEEPALIVED_SRV05"
+            TEXTO_REPLICA="SRV05"
+        fi
+
+        countdown 3
+
+        # Bucle de validacion
+        while true; do
+            # Apertura del fichero determinado por la evaluación anterior
+            sudo nano "$FICHERO_TARGET"
+
+            # Bucle interno de confirmación
+            while true; do
+                echo -e "\n¿Has terminado de ajustar el fichero? (y/n): "
+                read -r respuesta
+
+                case "$respuesta" in
+                    [Yy]* | "")
+                        log_info "Edición completada por el usuario. Continuando el flujo."
+                        break 2
+                        ;;
+                    [Nn]*)
+                        log_info "Reaperturando el fichero..."
+                        break 
+                        ;;
+                    *)
+                        echo -e "Épale papá, \"$respuesta\" no es una opción válida. Intenta de nuevo.\n"
+                        ;;
+                esac
+            done
+        done
+
+        log_info "Realizando replicado de la configuracion del ${TEXTO_REPLICA} en /etc/keepalived/"
+
         if [ ! -d "/etc/keepalived" ]; then
             log_info "Creando directorio /etc/keepalived estructural..."
             sudo mkdir -p /etc/keepalived
         fi
 
-        sudo cp "$PATH_KEEPALIVED_CONF" /etc/keepalived/
+        sudo cp "$FICHERO_TARGET" /etc/keepalived/keepalived.conf
         sudo ls -la /etc/keepalived/
         log_success "Fichero replicado con éxito en el sistema"
 
     else 
-        log_error "[ERROR]: No fue localizado el fichero de configuración en: $PATH_KEEPALIVED_CONF"
-    fi 
+        log_error "[ERROR]: No fue localizado el directorio de keepalive en el punto de montaje"
+    fi
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
