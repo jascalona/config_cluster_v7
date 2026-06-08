@@ -313,7 +313,7 @@ if [ -d ${MOUNT_CORE}loki ]; then
     log_info "Verificacion de imagenes"
     if [[ -z "$(sudo docker images -q $IMG_NAME_LOKI 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_MINIO 2> /dev/null)" ]]; then
         log_info "Las imagen no existe en este nodo, verificando (.tar)"
-        if [ -f "$IMAGE_PATH_LOKI" ] && [ -f "$IMG_NAME_MINIO" ] ; then
+        if [ -f "$IMAGE_PATH_LOKI" ] && [ -f "$IMAGE_PATH_MINIO" ] ; then
             log_warning "Cargando Imagenes..." 
             
             sudo docker load -i "$IMAGE_PATH_LOKI" > /dev/null 2>&1 &
@@ -324,6 +324,7 @@ if [ -d ${MOUNT_CORE}loki ]; then
 
         else
             log_error "[Error]: No fueron localizadas la imagen en la ruta especificada $IMAGE_PATH_LOKI y $IMAGE_PATH_MINIO"
+            exit 1
         fi
     else 
         log_info "Las imagen ($IMAGE_PATH_LOKI y $IMAGE_PATH_MINIO) ya existen, Omitiendo este paso..."
@@ -333,11 +334,11 @@ if [ -d ${MOUNT_CORE}loki ]; then
     log_info "Ajustando el repo data para loki"
     if [ -d "${MOUNT_CORE}loki" ]; then 
         echo "Punto de montaje detectado"
-        sudo mkdir -p "${MOUNT_LOKI}loki/loki_data"
-        sudo chown -R 10001:10001 "${MOUNT_LOKI}loki/loki_data"
+        sudo mkdir -p "${MOUNT_CORE}loki/loki_data"
+        sudo chown -R 10001:10001 "${MOUNT_CORE}loki/loki_data"
         echo "Permisos asignados"
     else
-        echo "ERROR: No se encontro el punto de montaje $MOUNT_LOKI"
+        echo "ERROR: No se encontro el punto de montaje $MOUNT_CORE"
     fi
 
 
@@ -347,8 +348,8 @@ if [ -d ${MOUNT_CORE}loki ]; then
     log_info "Ajustando el repo data para minio"
     if [ -d "$MOUNT_MINIO" ]; then 
         echo "Punto de montaje detectado"
-        sudo mkdir -p /storage_minio/minio_data
-        sudo chown -R 10001:10001 /storage_minio/minio_data
+        sudo mkdir -p ${MOUNT_MINIO}minio_data
+        sudo chown -R 10001:10001 ${MOUNT_MINIO}minio_data
         log_success "Permisos asignados"
     else
         log_error "ERROR: No se encontro el punto de montaje $MOUNT_MINIO"
@@ -447,7 +448,7 @@ if [ -d "${MOUNT_METRICS}pool-exporter" ]; then
     echo -e "${NEON_GREEN}${BOLD}  CONFIGURACIÓN DE ALERTMANAGER FINALIZADA                     ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
-    #  PAUSA 2: Finalización del la configuracion del alertmanager
+    #  PAUSA 2: Finalización del la configuracion del ppol-exporter
     press_to_continue
 
 else 
