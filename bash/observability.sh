@@ -44,7 +44,7 @@ MOUNT_OVERLAY="/overlay/"
 IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
 IMAGE_PATH_MINIO="/core/loki/images/minio-sha13582eff.tar"
 IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar" 
-IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.t"
+IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.tar"
 IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
 IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
 IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
@@ -224,7 +224,6 @@ clear
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD} FASE 2: INICIANDO CONFIGURACION DE PROMETHEUS                    ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-countdown 15
 log_warning "Verificando paqueteria"
 if [ -d "${MOUNT_CORE}prometheus" ]; then 
     log_success "Paqueteria detectada"
