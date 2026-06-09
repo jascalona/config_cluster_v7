@@ -45,7 +45,7 @@ while true; do
     echo -e "  ${DEEP_BLUE}5)${COLOR_RESET} Lanzar Stack MS (SGLPAR)"
     echo -e "  ${DEEP_BLUE}6)${COLOR_RESET} Lanzamiento secuencial para Negocio"
     echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Lanzamiento secuencial para el Balanceador"
-    echo -e "  ${DEEP_BLUE}8)${COLOR_RESET} Lanzamiento secuencial para Observabilidad"
+    echo -e "  ${DEEP_BLUE}8)${COLOR_RESET} Lanzamiento secuencial para Observabilidad (DESPLEGAR DESDE OBSERVABILIDAD)"
     echo -e "  ${DEEP_BLUE}9)${COLOR_RESET} Salir del Orquestador"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
@@ -270,7 +270,7 @@ while true; do
 
             # --- RESUMEN DE ENTREGA ---
             echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL EXITOSO                   ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (NEGOCIO) COMPLETO           ${COLOR_RESET}"
             echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
             log_info "A continuación se renderiza el estado global de servicios activos:"
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
@@ -316,7 +316,7 @@ while true; do
             
             # --- RESUMEN DE ENTREGA ---
             echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL COMPLETO                  ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (BALANCEADOR) COMPLETO                  ${COLOR_RESET}"
             echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
             log_info "A continuación se renderiza el estado global de servicios activos:"
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
@@ -331,7 +331,124 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL OBSERVABILIDAD            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"  
             
-            log_warning "ESTE FLUJO AUN SIGUE EN DESARROLLO PAPU"
+            # --- STEP 1: Service discovery
+            log_info "[Paso 1/7] Lanzando Service Discovery"
+            if [ -f "/metrics/service_discovery/discovery-stack.yml" ]; then
+                sudo docker stack deploy -c /metrics/service_discovery/discovery-stack.yml discovery > /dev/null
+                log_success "Instrucción de despliegue de discovery enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/service_discovery/discovery-stack.yml'"
+            fi
+
+            countdown 15 "Estabilizando el discovery"
+            echo -e "\n${BOLD} Verificando estado del discovery:${COLOR_RESET}"
+            sudo docker stack ps discovery --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 2: Prometheus
+            log_info "[Paso 2/7] Lanzando Prometheus"
+            if [ -f "/core/prometheus/stack-prometheus.yml" ]; then
+                sudo docker stack deploy -c /core/prometheus/stack-prometheus.yml prometheus > /dev/null
+                log_success "Instrucción de despliegue de prometheus enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/core/prometheus/stack-prometheus.yml'"
+            fi
+
+            countdown 20 "Estabilizando prometheus"
+            echo -e "\n${BOLD} Verificando estado de prometheus:${COLOR_RESET}"
+            sudo docker stack ps prometheus --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 3: Alloy
+            log_info "[Paso 3/7] Lanzando Alloy"
+            if [ -f "/metrics/alloy/observability.yml" ]; then
+                sudo NODE_IP=$(hostname -I | awk '{print $1}') docker stack deploy -c observability.yml alloy > /dev/null
+                log_success "Instrucción de despliegue de alloy enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/alloy/observability.yml'"
+            fi
+
+            countdown 15 "Estabilizando el ALloy"
+            echo -e "\n${BOLD} Verificando estado del discovery:${COLOR_RESET}"
+            sudo docker stack ps alloy --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 4: loki
+            log_info "[Paso 4/7] Lanzando loki/minio"
+            if [ -f "/core/loki/stacks/stack-loki.yml" ]; then
+                sudo docker stack deploy -c /core/loki/stacks/stack-loki.yml loki > /dev/null
+                log_success "Instrucción de despliegue de loki/minio enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/core/loki/stacks/stack-loki.yml'"
+            fi
+
+            countdown 15 "Estabilizando el loki/minio"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            log_info "CREANDO BUCKET PARA LOKI"
+            sudo docker exec -it $(sudo docker ps -q --filter "name=loki_minio") sh -c "mc alias set local http://localhost:9000 minioadmin matrix1357 && mc mb local/loki"
+            log_info "Renderizando lista de buckets"
+
+            countdown 2 
+            echo -e "\n${BOLD} Verificando estado del loki/minio:${COLOR_RESET}"
+            sudo docker stack ps loki --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 5: alertmanager
+            log_info "[Paso 5/7] Lanzando alertmanager"
+            if [ -f "/metrics/alertmanager/stacks/stack-alarm-manager.yml" ]; then
+                sudo docker stack deploy -c /metrics/alertmanager/stacks/stack-alarm-manager.yml alertmanager
+                log_success "Instrucción de despliegue de alertmanager enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/alertmanager/stacks/stack-alarm-manager.yml'"
+            fi
+
+            countdown 15 "Estabilizando el alertmanager"
+            echo -e "\n${BOLD} Verificando estado del alertmanager:${COLOR_RESET}"
+            sudo docker stack ps alertmanager --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 6: alertmanager
+            log_info "[Paso 6/7] Lanzando Grafana"
+            if [ -f "/metrics/grafana/stacks/stack-grafana.yml" ]; then
+                sudo docker stack deploy -c /metrics/grafana/stacks/stack-grafana.yml grafana
+                log_success "Instrucción de despliegue de grafana enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/grafana/stacks/stack-grafana.yml'"
+            fi
+
+            countdown 15 "Estabilizando el grafana"
+            echo -e "\n${BOLD} Verificando estado del grafana:${COLOR_RESET}"
+            sudo docker stack ps grafana --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 7: pool-exporter
+            log_info "[Paso 7/7] Lanzando pool-exporter"
+            if [ -f "/metrics/pool-exporter/pgpool-exporter-stack.yml" ]; then
+                sudo docker stack deploy -c /metrics/pool-exporter/pgpool-exporter-stack.yml pool-exporter
+                log_success "Instrucción de despliegue de pool-exporter enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/pool-exporter/pgpool-exporter-stack.yml'"
+            fi
+
+            countdown 15 "Estabilizando el pool-exporter"
+            echo -e "\n${BOLD} Verificando estado del pool-exporter:${COLOR_RESET}"
+            sudo docker stack ps pool-exporter --no-trunc | head -n 4
+            echo -
+
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (OBSERVABILIDAD) COMPLETO   ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+
+
             break
             ;;
         9)      

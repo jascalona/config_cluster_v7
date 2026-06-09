@@ -228,7 +228,7 @@ fi
 # ==============================================================================
 clear
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${DEEP_BLUE}${BOLD} FASE 1: INICIANDO CONFIGURACION DE PROMETHEUS                    ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD} FASE 2: INICIANDO CONFIGURACION DE PROMETHEUS                    ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
 log_warning "Verificando paqueteria"
@@ -263,7 +263,6 @@ if [ -d "${MOUNT_CORE}prometheus" ]; then
 
     # --- PERMISOS PROMETHEUS ---
     log_info "Aplicando permisos de infraestructura al directorio prometheus"
-    # Ajustamos permisos al UID standard de Prometheus (65534) por seguridad en vez de 777
     sudo chown -R 65534:65534 "${MOUNT_CORE}prometheus" && sudo chmod -R 755 "${MOUNT_CORE}prometheus"
     
     if [ $? -eq 0 ]; then
@@ -302,7 +301,7 @@ press_to_continue
 # ==============================================================================
 clear
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${DEEP_BLUE}${BOLD} FASE 1: INICIANDO CONFIGURACION DE LOKI Y MINIO                  ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD} FASE 3: INICIANDO CONFIGURACION DE LOKI Y MINIO                  ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
 
@@ -373,11 +372,11 @@ fi
 # ==============================================================================
 clear
 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE GRAFANA                     ${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}  FASE 4: PROCESO DE CONFIGURACIÓN DE GRAFANA                     ${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
 log_info "Verificando paqueteria"
-if [ -d "${MOUNT_METRICS}" ]; then
+if [ -d "${MOUNT_METRICS}grafana" ]; then
     log_success "Paqueteria detectada"
         
     log_info "Verificacion de imagen"
@@ -396,14 +395,10 @@ if [ -d "${MOUNT_METRICS}" ]; then
 
     # --- GRAFANA ---
     log_info "Aignando permisos al repo de grafana"
-    if [ -d "${MOUNT_METRICS}grafana" ]; then 
-        log_info "Repositorio detectado detectado"
-        log_warning "Asignando permisos"
-        sudo chmod -R 775 "${MOUNT_METRICS}grafana"
-        log_success "permisos agregados"
-    else
-        log_error "[ERROR]: No se encontro el repo ${MOUNT_METRICS}grafana"
-    fi
+    log_warning "Asignando permisos"
+    sudo chmod -R 775 "${MOUNT_METRICS}grafana"
+    log_success "permisos agregados"
+  
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
@@ -418,11 +413,11 @@ else
 fi
 
 # ==============================================================================
-# INICIO DE LA CONFIGURACION DEL ALERTMANAGER
+# INICIO DE LA CONFIGURACION DE POOL-EXPORTER
 # ==============================================================================
 clear
 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE POOL-EXPORTER                          ${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}  FASE 5: PROCESO DE CONFIGURACIÓN DE POOL-EXPORTER                          ${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
 log_info "Verificando paqueteria"
@@ -462,7 +457,7 @@ fi
 # ==============================================================================
 clear
 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE ALERTMANAGER                          ${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}  FASE 6: PROCESO DE CONFIGURACIÓN DE ALERTMANAGER                  ${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
 log_info "Verificando paqueteria"
@@ -496,3 +491,25 @@ else
 fi
 
 
+# --- OBSERVABILIDAD Y MÉTRICAS ---
+clear
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}  FASE 7: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+        
+log_info "Buscando scripts del recolector de métricas..."
+if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
+    log_info "Invocando la configuración de observabilidad..."
+    sudo bash /opt/Install_v7/bash/metrics.sh
+    log_success "Ecosistema de observabilidad en línea."
+else
+    log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
+fi
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+log_success "LISTANDO IMAGENES"
+    
+sudo docker image ls
+echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL BALANCEADOR                         ${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+        
