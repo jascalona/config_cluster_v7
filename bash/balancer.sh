@@ -437,6 +437,6 @@ clear
     
     sudo docker image ls
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-    echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL BALANCEADOR                         ${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL BALANCEADOR FINALIZADO               ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
         

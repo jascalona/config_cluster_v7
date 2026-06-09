@@ -41,18 +41,18 @@ MOUNT_LOGS="/logs/"
 MOUNT_OVERLAY="/overlay/"
 
 # ruta de la imagen
-IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v2.52.0.tar"
-IMAGE_PATH_LOKI="/core/loki/images/minio-sha13582eff.tar"
-IMAGE_PATH_MINIO="/core/loki/images/grafana-loki-2.9.5.tar"
-IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_0_0.tar*"
-IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar*"
+IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
+IMAGE_PATH_MINIO="/core/loki/images/minio-sha13582eff.tar"
+IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar" 
+IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.t"
+IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
 IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
-
+IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 # nombre imagen
-IMG_NAME_PROMETHEUS="prom/prometheus:v2.52.0"
-IMG_NAME_LOKI="grafana/loki:2.9.5"
+IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
+IMG_NAME_LOKI="grafana/loki:3.7.2"
 IMG_NAME_MINIO="minio/minio@sha256:13582eff79c6605a2d315bdd0e70164142ea7e98fc8411e9e10d089502a6d883"
-IMG_NAME_GRAFANA="projectsintel/grafana-simf-v7:1.0.0.1"
+IMG_NAME_GRAFANA="grafana/grafana:12.4.4-ubuntu"
 IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
 IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
 
@@ -120,14 +120,10 @@ log_info "Ejecutando escaneo de integridad en puntos de montaje..."
 
 
 TARGET_DIRS=(
-    "${MOUNT_BALANCER}nginx"
-    "${MOUNT_BALANCER}pgpool-conf"
     "${MOUNT_CORE}prometheus"
     "${MOUNT_CORE}loki"
     "${MOUNT_MINIO}minio_data"
-    "${MOUNT_METRICS}alloy"
     "${MOUNT_METRICS}grafana"
-    "${MOUNT_METRICS}service_discovery"
     "${MOUNT_METRICS}alertmanager"
     "${MOUNT_METRICS}pool-exporter"
     "${MOUNT_IA}qdrant/"
@@ -181,19 +177,13 @@ if [[ -f "$PACKAGE_OB" && -f "$METRICS_V7" ]]; then
 
     if [ -d "/opt/Install_v7/package_obser_and_balancer/" ];then 
         log_info "Distribuyendo los paquetes en volumenes persistentes..."
-
-        sudo mv /opt/Install_v7/package_obser_and_balancer/nginx/ "${MOUNT_BALANCER}"
-        sudo mv /opt/Install_v7/package_obser_and_balancer/pgpool-conf/ "${MOUNT_BALANCER}"
         
         sudo mv /opt/Install_v7/package_obser_and_balancer/pool-exporter/ "${MOUNT_METRICS}"
         sudo mv /opt/Install_v7/package_obser_and_balancer/alertmanager/ "${MOUNT_METRICS}"
         sudo mv /opt/Install_v7/package_obser_and_balancer/grafana/ "${MOUNT_METRICS}"
 
-        sudo mv /opt/Install_v7/metrics/alloy/ "${MOUNT_METRICS}"
-        sudo mv /opt/Install_v7/metrics/service_discovery/ "${MOUNT_METRICS}"
-
-        sudo mv /opt/Install_v7/core/prometheus/ "${MOUNT_CORE}"
-        sudo mv /opt/Install_v7/core/loki/ "${MOUNT_CORE}"
+        sudo mv /opt/Install_v7/package_obser_and_balancer/prometheus/ "${MOUNT_CORE}"
+        sudo mv /opt/Install_v7/package_obser_and_balancer/loki/ "${MOUNT_CORE}"
 
 
         # Limpieza del residuo temporal del descompresion
@@ -210,9 +200,13 @@ else
     exit 1
 fi 
 
+countdown 3
+
 # ==============================================================================
 # INVOCANDO LA CONFIGURACION DEL BALANCEADOR PARA ALTA DISPONIBILIDAD
 # ==============================================================================
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+log_info "REPLICANDO CONFIGURACION DEL BALANCEADOR"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 if [ -f "/opt/Install_v7/bash/balancer.sh" ]; then
     log_info "Script de configuracion (balancer.sh) localizado. Iniciando la configuracion"
@@ -230,7 +224,7 @@ clear
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD} FASE 2: INICIANDO CONFIGURACION DE PROMETHEUS                    ${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-
+countdown 15
 log_warning "Verificando paqueteria"
 if [ -d "${MOUNT_CORE}prometheus" ]; then 
     log_success "Paqueteria detectada"
@@ -346,7 +340,7 @@ if [ -d ${MOUNT_CORE}loki ]; then
     # --- MINIO ---
     log_info "Ajustando el repo data para minio"
     if [ -d "$MOUNT_MINIO" ]; then 
-        echo "Punto de montaje detectado"
+        log_info "Punto de montaje detectado"
         sudo mkdir -p ${MOUNT_MINIO}minio_data
         sudo chown -R 10001:10001 ${MOUNT_MINIO}minio_data
         log_success "Permisos asignados"
@@ -491,25 +485,11 @@ else
 fi
 
 
-# --- OBSERVABILIDAD Y MÉTRICAS ---
-clear
-echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${DEEP_BLUE}${BOLD}  FASE 7: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
-echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-        
-log_info "Buscando scripts del recolector de métricas..."
-if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
-    log_info "Invocando la configuración de observabilidad..."
-    sudo bash /opt/Install_v7/bash/metrics.sh
-    log_success "Ecosistema de observabilidad en línea."
-else
-    log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
-fi
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 log_success "LISTANDO IMAGENES"
     
 sudo docker image ls
 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL BALANCEADOR                         ${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN OBSERVABILIDAD FINALIZADO               ${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
         

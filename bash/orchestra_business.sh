@@ -347,11 +347,11 @@ while true; do
 
             # --- STEP 2: Prometheus
             log_info "[Paso 2/7] Lanzando Prometheus"
-            if [ -f "/core/prometheus/stack-prometheus.yml" ]; then
-                sudo docker stack deploy -c /core/prometheus/stack-prometheus.yml prometheus > /dev/null
+            if [ -f "/core/prometheus/stacks/stack-prometheus.yml" ]; then
+                sudo docker stack deploy -c /core/prometheus/stacks/stack-prometheus.yml prometheus > /dev/null
                 log_success "Instrucción de despliegue de prometheus enviada a la API de Swarm"
             else 
-                log_error "Stack crítico ausente: '/core/prometheus/stack-prometheus.yml'"
+                log_error "Stack crítico ausente: '/core/prometheus/stacks/stack-prometheus.yml'"
             fi
 
             countdown 20 "Estabilizando prometheus"
@@ -363,13 +363,13 @@ while true; do
             # --- STEP 3: Alloy
             log_info "[Paso 3/7] Lanzando Alloy"
             if [ -f "/metrics/alloy/observability.yml" ]; then
-                sudo NODE_IP=$(hostname -I | awk '{print $1}') docker stack deploy -c observability.yml alloy > /dev/null
+                sudo NODE_IP=$(hostname -I | awk '{print $1}') docker stack deploy -c /metrics/alloy/observability.yml alloy > /dev/null
                 log_success "Instrucción de despliegue de alloy enviada a la API de Swarm"
             else 
                 log_error "Stack crítico ausente: '/metrics/alloy/observability.yml'"
             fi
 
-            countdown 15 "Estabilizando el ALloy"
+            countdown 15 "Estabilizando el Alloy"
             echo -e "\n${BOLD} Verificando estado del discovery:${COLOR_RESET}"
             sudo docker stack ps alloy --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"

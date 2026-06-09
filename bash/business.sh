@@ -57,6 +57,8 @@ MOUNT_OVERLAY="/overlay"
 
 IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
 IMAGE_PATH_PG_R="/app_psql/packague_bd/images/simf_replica.tar"
+IMAGE_PATH_PG_EXPORTER="/app_psql/packague_bd/images/postgres-exporter_v0.17.1.tar"
+
 IMAGE_PATH_PGAGENT="/app_psql/pgagent/pgagent.tar"
 
 
@@ -71,6 +73,8 @@ IMAGE_PATH_KAFKA="/kafka/kafka/images/projectsintel-kafka-simf-v7_1.0.2.tar"
 
 IMG_NAME_PG_P="bd-simf:latest"
 IMG_NAME_PG_R="ibp_simf_replica:latest"
+IMG_NAME_PG_EXPORTER="prometheuscommunity/postgres-exporter:v0.17.1"
+
 IMG_NAME_PGAGENT="pg_pgagent:latest"
 IMG_NAME_KAFKA="projectsintel/kafka-simf-v7:1.0.2"
 
@@ -273,6 +277,21 @@ while true; do
                 else 
                     log_success "La imagen $IMG_NAME_PG_R ya se encuentra en el host."
                 fi
+
+                # carga de imagen para postgres-exporter
+                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_EXPORTER 2> /dev/null)" ]]; then
+                    if [ -f "$IMAGE_PATH_PG_EXPORTER" ]; then
+                        echo -n "   Cargando imagen de réplica ($IMG_NAME_PG_EXPORTER)..."
+                        sudo docker load -i "$IMAGE_PATH_PG_EXPORTER" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_EXPORTER"
+                        exit 1
+                    fi
+                else 
+                    log_success "La imagen $IMG_NAME_PG_EXPORTER ya se encuentra en el host."
+                fi
+
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
@@ -724,6 +743,19 @@ while true; do
                     log_success "La imagen $IMG_NAME_PG_P ya se encuentra en el host."
                 fi
 
+                # carga de imagen para postgres-exporter
+                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_EXPORTER 2> /dev/null)" ]]; then
+                    if [ -f "$IMAGE_PATH_PG_EXPORTER" ]; then
+                        echo -n "   Cargando imagen de réplica ($IMG_NAME_PG_EXPORTER)..."
+                        sudo docker load -i "$IMAGE_PATH_PG_EXPORTER" > /dev/null 2>&1 &
+                        spinner $!
+                    else 
+                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_EXPORTER"
+                        exit 1
+                    fi
+                else 
+                    log_success "La imagen $IMG_NAME_PG_EXPORTER ya se encuentra en el host."
+                fi
 
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
                 log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
@@ -818,7 +850,7 @@ while true; do
                     log_success "Imagen de Kafka ya sincronizada."
                 fi 
 
-if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
+                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
                     
                     # Variable de control para manejar la apertura del archivo
