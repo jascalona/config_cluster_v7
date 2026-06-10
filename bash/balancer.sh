@@ -179,6 +179,7 @@ if [[ -f "$PACKAGE_OB" && -f "$METRICS_V7" ]]; then
 
         # Limpieza del residuo temporal del descompresion
         sudo rm -rf /opt/Install_v7/package_obser_and_balancer/
+        sudo rm -rf /opt/Install_v7/metrics/
 
         log_success "Paquetería cargada y desplegada exitosamente en puntos de montaje."
 
@@ -273,7 +274,7 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
         log_info "Mostrando las propiedades de la interfaz, por favor preste atención y copie el nombre de su interfaz"
         sudo ip -br a  
         
-        countdown 15 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
+        countdown 5 "Delay agregado para que pueda copiar el nombre de su interfaz, esperando..."
         log_info "Iniciando la apertura del fichero para la actualizacion de su ip virtual y la interfaz de red"
         log_info "COPIE EL NOMBRE DE LA INTERFAZ DE SU IP FISICA"
         

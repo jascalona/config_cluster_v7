@@ -170,6 +170,7 @@ if [[ -f "$PACKAGE_OB" && -f "$METRICS_V7" ]]; then
 
         # Limpieza del residuo temporal del descompresion
         sudo rm -rf /opt/Install_v7/package_obser_and_balancer/
+        sudo rm -rf /opt/Install_v7/metrics/
 
         log_success "Paquetería cargada y desplegada exitosamente en puntos de montaje."
 
@@ -237,8 +238,16 @@ if [ -d "${MOUNT_CORE}prometheus" ]; then
     fi
 
     # --- PERMISOS PROMETHEUS ---
+    sudo mkdir "${MOUNT_CORE}prometheus/data"
+    if [ -d "${MOUNT_CORE}prometheus/data" ]; then
+        log_success "Repo creado"
+    else 
+        log_error "Ocurrio un error al crear el repo data"
+    fi
+    
     log_info "Aplicando permisos de infraestructura al directorio prometheus"
     sudo chown -R 65534:65534 "${MOUNT_CORE}prometheus" && sudo chmod -R 755 "${MOUNT_CORE}prometheus"
+    log_info "Creando repo data"
     
     if [ $? -eq 0 ]; then
         log_success "--- Permisos asignados correctamente ---"

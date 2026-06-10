@@ -413,7 +413,6 @@ while true; do
                         sudo docker stack ps --no-trunc bd-simf | head -n 5
                     else
                         log_error "Docker stack deploy falló al procesar el archivo del servicio."
-                        exit 1
                     fi
                 else 
                     log_error "Manifiesto 'primary-stack.yml' no encontrado."
