@@ -122,6 +122,7 @@ if [ -f "$DAEMON_JSON" ] && grep -q "default-ulimits" "$DAEMON_JSON"; then
 else
     echo "Aplicando optimización de nofile (65536) y MTU (1450) en el daemon local..."
     sudo echo '{ "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }, "mtu": 1450 }' | sudo tee "$DAEMON_JSON" > /dev/null
+    sudo systemctl restart docker
     echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito."
 
 fi

@@ -57,9 +57,6 @@ IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
 IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
 
 
-
-DAEMON_JSON="/etc/docker/daemon.json"
-
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
 # ==============================================================================
@@ -90,21 +87,6 @@ countdown() {
     printf "\r ${NEON_GREEN}✔${COLOR_RESET} $msg... ¡Tiempo cumplido!     \n"
 }
 
-# ==============================================================================
-# CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS Y MTU)
-# ==============================================================================
-echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local...${COLOR_RESET}"
-
-# Validamos si el archivo daemon.json ya contiene la configuración de ulimits
-if [ -f "$DAEMON_JSON" ] && grep -q "default-ulimits" "$DAEMON_JSON"; then
-    echo -e "${VIVID_YELLOW} La configuración de ulimits/mtu ya existe en $DAEMON_JSON. Saltando..."
-else
-    echo "Aplicando optimización de nofile (65536) y MTU (1450) en el daemon local..."
-    sudo echo '{ "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }, "mtu": 1450 }' | sudo tee "$DAEMON_JSON" > /dev/null
-    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito.${COLOR_RESET}"
-
-fi
-echo -e "-----------------------------------------------------------------"
 
 # ==============================================================================
 # FASE 1: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA

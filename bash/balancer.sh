@@ -92,15 +92,17 @@ countdown() {
 # ==============================================================================
 # CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS Y MTU)
 # ==============================================================================
-echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local...${COLOR_RESET}"
+
+echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local..."
 
 # Validamos si el archivo daemon.json ya contiene la configuración de ulimits
 if [ -f "$DAEMON_JSON" ] && grep -q "default-ulimits" "$DAEMON_JSON"; then
-    echo -e "${VIVID_YELLOW} La configuración de ulimits/mtu ya existe en $DAEMON_JSON. Saltando..."
+    echo -e "${YELLOW} La configuración de ulimits/mtu ya existe en $DAEMON_JSON. Saltando..."
 else
     echo "Aplicando optimización de nofile (65536) y MTU (1450) en el daemon local..."
     sudo echo '{ "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }, "mtu": 1450 }' | sudo tee "$DAEMON_JSON" > /dev/null
-    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito.${COLOR_RESET}"
+    sudo systemctl restart docker
+    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito."
 
 fi
 echo -e "-----------------------------------------------------------------"
