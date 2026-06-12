@@ -424,7 +424,7 @@ if [ -d "${MOUNT_METRICS}pool-exporter" ]; then
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-    echo -e "${NEON_GREEN}${BOLD}  CONFIGURACIÓN DE ALERTMANAGER FINALIZADA                     ${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}  CONFIGURACIÓN DE POOL-EXPORTER FINALIZADA                     ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
     #  PAUSA 2: Finalización del la configuracion del ppol-exporter
