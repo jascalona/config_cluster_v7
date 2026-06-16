@@ -65,8 +65,8 @@ IMAGE_PATH_PGAGENT="/app_psql/pgagent/pgagent.tar"
 IMAGE_PATH_SIMF_REST="/app_services/app_simf/image/simf_rest_api_0_2_2.tar"
 IMAGE_PATH_SIMF_MS="/app_services/app_simf/image/simf_ms_0_2_2.tar"
 
-IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sglpar_rest_api_0_2_2.tar"
-IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sglpar_ms_0_2_2.tar"
+IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sglpar_api.tar"
+IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sglpar_ms.tar"
 
 
 IMAGE_PATH_KAFKA="/kafka/kafka/images/projectsintel-kafka-simf-v7_1.0.2.tar"
@@ -423,13 +423,6 @@ while true; do
                 exit 1
             fi
 
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            log_success "VALIDACION DE BD"
-            
-            log_info "VERIFICANDO EL ESTADO DE LA BD"
-            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
-
-
             #  PAUSA 1: Finalización de la Base de Datos antes de Kafka
             press_to_continue
 
@@ -701,6 +694,15 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             log_success "LISTANDO IMAGENES"
             sudo docker image ls
+
+
+            echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "VALIDACION DE BD"
+            
+            log_info "VERIFICANDO EL ESTADO DE LA BD"
+            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
+
+
 
             break
             ;;
