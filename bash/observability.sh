@@ -25,7 +25,7 @@ press_to_continue() {
 # ==============================================================================
 # VARIABLES DE ENTORNO
 # ==============================================================================
-OBSERVABILITY="observabilidad"
+OBSERVABILITY="vasldiccs063"
 
 # paquetes de configuracion
 PACKAGE_OB="/opt/Install_v7/package_obser_and_balancer.zip"
@@ -42,7 +42,7 @@ MOUNT_OVERLAY="/overlay/"
 
 # ruta de la imagen
 IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
-IMAGE_PATH_MINIO="/core/loki/images/minio-sha13582eff.tar"
+IMAGE_PATH_MINIO="/core/loki/images/minio-sha14cea498d.tar"
 IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar" 
 IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.tar"
 IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
@@ -51,7 +51,7 @@ IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 # nombre imagen
 IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
 IMG_NAME_LOKI="grafana/loki:3.7.2"
-IMG_NAME_MINIO="minio/minio@sha256:13582eff79c6605a2d315bdd0e70164142ea7e98fc8411e9e10d089502a6d883"
+IMG_NAME_MINIO="minio/minio:latest"
 IMG_NAME_GRAFANA="grafana/grafana:12.4.4-ubuntu"
 IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
 IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
