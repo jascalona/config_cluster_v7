@@ -44,12 +44,11 @@ while true; do
     echo -e "  ${DEEP_BLUE}4)${COLOR_RESET} Lanzar Stack MS (SIMF)"
     echo -e "  ${DEEP_BLUE}5)${COLOR_RESET} Lanzar Stack MS (SGLPAR)"
     echo -e "  ${DEEP_BLUE}6)${COLOR_RESET} Lanzamiento secuencial para Negocio"
-    echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Lanzamiento secuencial para el Balanceador"
-    echo -e "  ${DEEP_BLUE}8)${COLOR_RESET} Lanzamiento secuencial para Observabilidad (DESPLEGAR DESDE OBSERVABILIDAD)"
-    echo -e "  ${DEEP_BLUE}9)${COLOR_RESET} Salir del Orquestador"
+    echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Lanzamiento secuencial para Observabilidad y Balanceador"
+    echo -e "  ${DEEP_BLUE}8)${COLOR_RESET} Salir del Orquestador"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-    read -p "Seleccione una opción de control (1-9): " opcion
+    read -p "Seleccione una opción de control (1-8): " opcion
 
     case $opcion in 
         1)
@@ -281,51 +280,8 @@ while true; do
         
         
         7)
-            clear
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL BALANCEADOR               ${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-            # --- STEP 1: NGINX
-            log_info "[Paso 1/2] Lanzando Nginx"
-            if [ -f "/balancer/nginx/simf/nginx-optimized.conf" ]; then
-                sudo docker stack deploy -c /balancer/nginx/simf/nginx-stack.yml nginx > /dev/null
-                log_success "Instrucción de despliegue de Nginx enviada a la API de Swarm"
-            else 
-                log_error "Manifiesto crítico ausente: '/balancer/nginx/simf/nginx-optimized.conf'"
-            fi
-
-            countdown 20 "Estabilizando el Nginx"
-            echo -e "\n${BOLD} Verificando estado de Nginx:${COLOR_RESET}"
-            sudo docker stack ps nginx --no-trunc | head -n 4
-            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
-
-            # --- STEP 2: POOL
-            log_info "[Paso 2/2] Lanzando Pgpool"
-            if [ -f "/balancer/pgpool-conf/pgpool-stack.yml" ]; then
-                sudo docker stack deploy -c /balancer/pgpool-conf/pgpool-stack.yml pgpool > /dev/null
-                log_success "Instrucción de despliegue de Pgpool enviada a la API de Swarm"
-            else 
-                log_error "Manifiesto crítico ausente: '/balancer/pgpool-conf/pgpool-stack.yml'"
-            fi
-
-            countdown 30 "Estabilizando el Pool"
-            echo -e "\n${BOLD} Verificando estado del Pool:${COLOR_RESET}"
-            sudo docker stack ps pgpool --no-trunc | head -n 4
-            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"            
-            
-            # --- RESUMEN DE ENTREGA ---
-            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (BALANCEADOR) COMPLETO                  ${COLOR_RESET}"
-            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-            log_info "A continuación se renderiza el estado global de servicios activos:"
-            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
-            sudo docker service ls
-
-            break
-            ;;
-
-        8)
+            # --- INICIO DEL PIPELINE DE DESPLIEGUE OBSERVABILIDAD ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL OBSERVABILIDAD            ${COLOR_RESET}"
@@ -449,11 +405,54 @@ while true; do
             sudo docker service ls
 
 
+            # --- INICIO DEL PIPELINE DE DESPLIEGUE BALANCEADOR ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL BALANCEADOR               ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            # --- STEP 1: NGINX
+            log_info "[Paso 1/2] Lanzando Nginx"
+            if [ -f "/balancer/nginx/simf/nginx-optimized.conf" ]; then
+                sudo docker stack deploy -c /balancer/nginx/simf/nginx-stack.yml nginx > /dev/null
+                log_success "Instrucción de despliegue de Nginx enviada a la API de Swarm"
+            else 
+                log_error "Manifiesto crítico ausente: '/balancer/nginx/simf/nginx-optimized.conf'"
+            fi
+
+            countdown 20 "Estabilizando el Nginx"
+            echo -e "\n${BOLD} Verificando estado de Nginx:${COLOR_RESET}"
+            sudo docker stack ps nginx --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 2: POOL
+            log_info "[Paso 2/2] Lanzando Pgpool"
+            if [ -f "/balancer/pgpool-conf/pgpool-stack.yml" ]; then
+                sudo docker stack deploy -c /balancer/pgpool-conf/pgpool-stack.yml pgpool > /dev/null
+                log_success "Instrucción de despliegue de Pgpool enviada a la API de Swarm"
+            else 
+                log_error "Manifiesto crítico ausente: '/balancer/pgpool-conf/pgpool-stack.yml'"
+            fi
+
+            countdown 30 "Estabilizando el Pool"
+            echo -e "\n${BOLD} Verificando estado del Pool:${COLOR_RESET}"
+            sudo docker stack ps pgpool --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"            
+            
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (BALANCEADOR) COMPLETO                  ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+
             break
             ;;
-        9)      
+
+        8)
             echo -e "\n${CRIMSON_RED}➔ Desconectando del Gestor de Swarm. Saliendo del flujo de orquestación. ¡Adiós Papu!${COLOR_RESET}"
-            exit 0 
+            exit 0
             ;;
         
         *)

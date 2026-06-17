@@ -422,6 +422,28 @@ if [ -d "${MOUNT_METRICS}pool-exporter" ]; then
         log_info "La imagen ($IMG_NAME_POOLEXPORTER) ya existe, Omitiendo este paso..."
     fi
 
+    PGPOOL_DNS="pgpool_dsn"
+
+    log_info "Verificación del secret: ${PGPOOL_DNS}"
+
+    if docker secret inspect "$PGPOOL_DNS" >/dev/null 2>&1; then
+        log_info "El secret ${PGPOOL_DNS} ya existe en el cluster. Omitiendo creación."
+    else 
+        log_info "El secret ${PGPOOL_DNS} no fue detectado en el cluster, preparando inyección..."
+        
+        # Usamos variables para armar la cadena (o idealmente pasas el DSN desde fuera)
+        DB_URI="postgresql://postgres:PO\$tgr3\$.BD@pgpool:9997/postgres?sslmode=disable"
+        
+        printf "%s" "$DB_URI" | docker secret create "$PGPOOL_DNS" - >/dev/null 2>&1
+        
+        if docker secret inspect "$PGPOOL_DNS" >/dev/null 2>&1; then 
+            log_success "El secret ${PGPOOL_DNS} fue creado con éxito."
+        else 
+            log_error "Falló la inyección del secret ${PGPOOL_DNS}."
+            exit 1 
+        fi
+    fi
+
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}  CONFIGURACIÓN DE POOL-EXPORTER FINALIZADA                     ${COLOR_RESET}"

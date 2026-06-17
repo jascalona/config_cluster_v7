@@ -26,7 +26,7 @@ press_to_continue() {
 # VARIABLES DE ENTORNO
 # ==============================================================================
 BALANCER="balancer"
-OBSERVABILITY="observabilidad"
+OBSERVABILITY="observability"
 
 
 # paquetes de configuracion
@@ -342,13 +342,13 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
     echo -e "\n${BOLD} Configuracion del extra_hosts stack del nginx"
     echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
     
-    STACK_NGINX="${BALANCER}nginx/simf/nginx-stack.yml"
+    STACK_NGINX="${MOUNT_BALANCER}nginx/simf/nginx-stack.yml"
     while true; do
         # apertura del fichero
         sudo nano "$STACK_NGINX"
         
         # bucle interno de confirmacion
-        while true do;
+        while true; do
             echo -e "\n¿Has terminado de ajustar el fichero? (y/n): "
             read -r respuesta
 
@@ -363,6 +363,7 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
                     ;;
                 *)
                     echo -e "Epale papa, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
+                    ;;
             esac
         done
     done
