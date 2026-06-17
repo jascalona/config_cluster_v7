@@ -308,7 +308,7 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
 
                 case "$respuesta" in
                     [Yy]* | "")
-                        log_info "Edición completada por el usuario. Continuando el flujo."
+                        log_info "Edicion completada por el usuario. Continuando el flujo."
                         break 2
                         ;;
                     [Nn]*)
@@ -316,7 +316,7 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
                         break 
                         ;;
                     *)
-                        echo -e "Épale papá, \"$respuesta\" no es una opción válida. Intenta de nuevo.\n"
+                        echo -e "Epale papa, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
                         ;;
                 esac
             done
@@ -336,6 +336,37 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
     else 
         log_error "[ERROR]: No fue localizado el directorio de keepalive en el punto de montaje"
     fi
+
+    countdown 3
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "\n${BOLD} Configuracion del extra_hosts stack del nginx"
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    
+    STACK_NGINX="${BALANCER}nginx/simf/nginx-stack.yml"
+    while true; do
+        # apertura del fichero
+        sudo nano "$STACK_NGINX"
+        
+        # bucle interno de confirmacion
+        while true do;
+            echo -e "\n¿Has terminado de ajustar el fichero? (y/n): "
+            read -r respuesta
+
+            case "$respuesta" in
+                [Yy]* | "")
+                    log_info "Edicion completada por el usuario. Continuando el flujo"
+                    break 2
+                    ;;
+                [Nn]*)
+                    log_info "Reaperturando el fichero"
+                    break
+                    ;;
+                *)
+                    echo -e "Epale papa, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
+            esac
+        done
+    done
+
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
