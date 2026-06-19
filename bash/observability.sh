@@ -49,6 +49,7 @@ IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
 IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
 IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 # nombre imagen
+IMG_NAME_ARGUS="prom/prometheus:v3.12.0"
 IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
 IMG_NAME_LOKI="grafana/loki:3.7.2"
 IMG_NAME_MINIO="minio/minio:latest"
@@ -478,7 +479,7 @@ if [ -d "${MOUNT_METRICS}alertmanager" ]; then
             sudo docker load -i "$IMAGE_PATH_ALERT" > /dev/null 2>&1 &
             spinner $!
         else
-            log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_ALERT"
+            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada $IMAGE_PATH_ALERT"
         fi
     else 
         log_info "La imagen ($IMG_NAME_ALERT) ya existe, Omitiendo este paso..."
@@ -508,10 +509,28 @@ echo -e "${NEON_GREEN}${BOLD}===================================================
 log "Verificando paqueteria"
 if [ -d"${MOUNT_BALANCER}nginx/simf/argus" ]; then
     log_success "Paqueteria detectada"
-
-
     log_info "Verificando imagen"
+    if [[ -z "$(sudo docker image -q $IMG_NAME_ARGUS 2> /dev/null)" ]];then 
+        log_info "La imagen no existe en este nodo, verificando la existencia del .tar"
+        if [ -f "$IMG_NAME_ARGUS" ]; then 
+            log_warning "Cargando imagen..."
+            sudo docker load -i "$IMG_NAME_ARGUS" > /dev/null 2>&1 &
+            spinner $!
+        else 
+            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada $IMG_NAME_ARGUS"
+            exit ;
+        fi
+    else 
+        log_info "La imagen ($IMG_NAME_ARGUS) ya existe, Omitiendo este paso..."
+    fi 
 
+    log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
+    echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}  CONFIGURACIÓN DE ARGUS FINALIZADA                                 ${COLOR_RESET}"
+    echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
+
+    # PAUSA : Finalización del la configuracion de argus
+    press_to_continue
 
 else 
     log_error "[Error]: No fue localizada la paqueteria, abortando configuracion de argus"

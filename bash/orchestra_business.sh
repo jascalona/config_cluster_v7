@@ -411,8 +411,23 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL BALANCEADOR               ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-            # --- STEP 1: NGINX
-            log_info "[Paso 1/2] Lanzando Nginx"
+            
+            # --- STEP 1: ARGUS
+            log_info "[Paso 1/3] Lanzando Pgpool"
+            if [ -f "/balancer/nginx/simf/argus/stack-argus.yml" ]; then
+                sudo docker stack deploy -c /balancer/nginx/simf/argus/stack-argus.yml argus > /dev/null
+                log_success "Instrucción de despliegue de Argus enviada a la API de Swarm"
+            else 
+                log_error "Manifiesto crítico ausente: '/balancer/nginx/simf/argus/stack-argus.yml'"
+            fi
+
+            countdown 30 "Estabilizando Argus"
+            echo -e "\n${BOLD} Verificando estado de Argus:${COLOR_RESET}"
+            sudo docker stack ps argus --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"            
+            
+            # --- STEP 2: NGINX
+            log_info "[Paso 2/3] Lanzando Nginx"
             if [ -f "/balancer/nginx/simf/nginx-optimized.conf" ]; then
                 sudo docker stack deploy -c /balancer/nginx/simf/nginx-stack.yml nginx > /dev/null
                 log_success "Instrucción de despliegue de Nginx enviada a la API de Swarm"
@@ -425,8 +440,8 @@ while true; do
             sudo docker stack ps nginx --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-            # --- STEP 2: POOL
-            log_info "[Paso 2/2] Lanzando Pgpool"
+            # --- STEP 3: POOL
+            log_info "[Paso 3/3] Lanzando Pgpool"
             if [ -f "/balancer/pgpool-conf/pgpool-stack.yml" ]; then
                 sudo docker stack deploy -c /balancer/pgpool-conf/pgpool-stack.yml pgpool > /dev/null
                 log_success "Instrucción de despliegue de Pgpool enviada a la API de Swarm"
@@ -446,6 +461,17 @@ while true; do
             log_info "A continuación se renderiza el estado global de servicios activos:"
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
             sudo docker service ls
+
+
+            
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (BALANCEADOR) COMPLETO                  ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+
 
             break
             ;;
