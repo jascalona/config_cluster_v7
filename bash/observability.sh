@@ -497,6 +497,28 @@ else
 fi
 
 
+# ==============================================================================
+# INICIO DE LA CONFIGURACION DE ARGUS
+# ==============================================================================
+clear
+echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}  FASE 7: PROCESO DE CONFIGURACIÓN DE ARGUS                         ${COLOR_RESET}"
+echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
+
+log "Verificando paqueteria"
+if [ -d"${MOUNT_BALANCER}nginx/simf/argus" ]; then
+    log_success "Paqueteria detectada"
+
+
+    log_info "Verificando imagen"
+
+
+else 
+    log_error "[Error]: No fue localizada la paqueteria, abortando configuracion de argus"
+fi
+
+
+
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 log_success "LISTANDO IMAGENES"
     
