@@ -42,14 +42,15 @@ MOUNT_OVERLAY="/overlay/"
 
 # ruta de la imagen
 IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
+IMAGE_PATH_ARGUS="/balancer/nginx/simf/argus/api/api/argus_api_v7_1_7_0.tar"
 IMAGE_PATH_MINIO="/core/loki/images/minio-sha14cea498d.tar"
-IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar" 
+IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar"
 IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.tar"
 IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
 IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
 IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 # nombre imagen
-IMG_NAME_ARGUS="prom/prometheus:v3.12.0"
+IMG_NAME_ARGUS="argus_api_v7:1.7.0"
 IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
 IMG_NAME_LOKI="grafana/loki:3.7.2"
 IMG_NAME_MINIO="minio/minio:latest"
@@ -512,12 +513,12 @@ if [ -d"${MOUNT_BALANCER}nginx/simf/argus" ]; then
     log_info "Verificando imagen"
     if [[ -z "$(sudo docker image -q $IMG_NAME_ARGUS 2> /dev/null)" ]];then 
         log_info "La imagen no existe en este nodo, verificando la existencia del .tar"
-        if [ -f "$IMG_NAME_ARGUS" ]; then 
+        if [ -f "$IMAGE_PATH_ARGUS" ]; then 
             log_warning "Cargando imagen..."
-            sudo docker load -i "$IMG_NAME_ARGUS" > /dev/null 2>&1 &
+            sudo docker load -i "$IMAGE_PATH_ARGUS" > /dev/null 2>&1 &
             spinner $!
         else 
-            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada $IMG_NAME_ARGUS"
+            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada $IMAGE_PATH_ARGUS"
             exit ;
         fi
     else 

@@ -1,0 +1,488 @@
+#!/bin/bash
+
+# ==============================================================================
+# CONFIGURACIÓN VISUAL Y COLORES
+# ==============================================================================
+COLOR_RESET="\e[0m"
+NEON_GREEN="\e[38;5;82m"
+DEEP_BLUE="\e[38;5;39m"
+VIVID_YELLOW="\e[38;5;214m"
+CRIMSON_RED="\e[38;5;196m"
+CYAN_INFO="\e[38;5;51m"
+BOLD="\e[1m"
+
+log_info()    { echo -e " ${CYAN_INFO}➔${COLOR_RESET} $1"; }
+log_success() { echo -e " ${NEON_GREEN}✔${COLOR_RESET} $1"; }
+log_warning() { echo -e " ${VIVID_YELLOW}⚠${COLOR_RESET} ${BOLD}$1${COLOR_RESET}"; }
+log_error()   { echo -e " ${CRIMSON_RED}✖${COLOR_RESET} ${BOLD}$1${COLOR_RESET}"; }
+
+# Función para barra de progreso temporal en los sleeps
+countdown() {
+    local secs=$1
+    local msg=$2
+    while [ $secs -gt 0 ]; do
+        printf "\r ${VIVID_YELLOW}${COLOR_RESET} $msg... Esperando %02ds " "$secs"
+        sleep 1
+        : $((secs--))
+    done
+    printf "\r ${NEON_GREEN}✔${COLOR_RESET} $msg... ¡Tiempo cumplido!     \n"
+}
+
+# ==============================================================================
+# FLUJO PRINCIPAL - ORQUESTADOR
+# ==============================================================================
+clear
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}  ORQUESTADOR CENTRAL DE DESPLIEGUE - CLUSTER DE NEGOCIO           ${COLOR_RESET}"
+echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+while true; do 
+    echo -e "\n${BOLD}MENÚ DE ORQUESTACIÓN Y DESPLIEGUE:${COLOR_RESET}"
+    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Lanzar Stack PostgreSQL (Modo Réplica)"
+    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Lanzar Stack Pgagent (Pgagent)"
+    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Lanzar Stack kafka(Cluster Kafka)"
+    echo -e "  ${DEEP_BLUE}4)${COLOR_RESET} Lanzar Stack MS (SIMF)"
+    echo -e "  ${DEEP_BLUE}5)${COLOR_RESET} Lanzar Stack MS (SGLPAR)"
+    echo -e "  ${DEEP_BLUE}6)${COLOR_RESET} Lanzamiento secuencial para Negocio"
+    echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Lanzamiento secuencial para Observabilidad y Balanceador"
+    echo -e "  ${DEEP_BLUE}8)${COLOR_RESET} Salir del Orquestador"
+    echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+    read -p "Seleccione una opción de control (1-8): " opcion
+
+    case $opcion in 
+        1)
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: POSTGRESQL REPLICA                     ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            
+            if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
+                log_info "Desplegando topología en Swarm..."
+                sudo docker stack deploy -c /app_psql/packague_bd/stack/replica-stack.yml pg_replica
+                echo -e "\n${BOLD}[Estado actual del Stack 'pg_replica']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc pg_replica | head -n 6
+            else 
+                log_error "El manifiesto 'replica-stack.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+            
+            log_warning "Enganchando stdout al streaming de logs en tiempo real..."
+            log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
+            sleep 2
+
+            countdown 60 "Estabilizando la replica"
+
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "VERIFICACION DE LA REPLICA"
+            
+            log_info "VERIFICANDO EL ESTADO DE LA BD"
+            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
+
+
+            sudo docker service logs -f pg_replica_replica
+            break
+            ;;
+        
+
+        2) 
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: PGAGENT                               ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            
+            if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
+                log_info "Desplegando servicio en Swarm..."
+                sudo docker stack deploy -c /app_psql/pgagent/pgagent-stack.yml pgagent
+                echo -e "\n${BOLD}[Estado actual del Stack 'pgagent']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc pgagent | head -n 6
+            else 
+                log_error "El manifiesto 'pgagent-stack.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+            
+            log_warning "Enganchando stdout al streaming de logs en tiempo real..."
+            log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
+            sleep 2
+            sudo docker service logs -f pgagent_pgagent
+            break
+            ;;
+
+
+        3)
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: DISTRIBUTED KAFKA CLUSTER              ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            
+            if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
+                log_info "Desplegando topología en Swarm..."
+                sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka
+                echo -e "\n${BOLD}[Estado actual del Stack 'kafka']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc kafka | head -n 6
+            else 
+                log_error "El manifiesto 'kafka.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+            
+            log_warning "Enganchando stdout al streaming de logs en tiempo real..."
+            log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
+            sleep 2
+            sudo docker service logs -f kafka_kafka1
+            break
+            ;;
+
+        4)
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: MICROSERVICIOS CORE (SIMF)            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            
+            if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
+                log_info "Desplegando topología en Swarm..."
+                sudo docker stack deploy -c /app_services/app_simf/stack-simf.yml simf
+                echo -e "\n${BOLD}[Estado actual del Stack 'simf']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc simf | head -n 6
+            else 
+                log_error "El manifiesto 'stack-simf.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+            
+            log_warning "Enganchando stdout al streaming de logs en tiempo real..."
+            log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
+            sleep 2
+            sudo docker service logs -f simf_rest_api
+            break
+            ;;
+
+
+        5) 
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: SGLPAR                                ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            
+            if [ -f "/app_services/app_sglpar/stack-sglpar.yml" ]; then 
+                log_info "Desplegando servicio en Swarm..."
+                sudo docker stack deploy -c /app_services/app_sglpar/stack-sglpar.yml sglpar
+                echo -e "\n${BOLD}[Estado actual del Stack 'pgagent']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc sglpar | head -n 6
+            else 
+                log_error "El manifiesto 'stack-sglpar.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+            
+            log_warning "Enganchando stdout al streaming de logs en tiempo real..."
+            log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
+            sleep 2
+            sudo docker service logs -f sglpar_rest_api
+            break
+            ;;
+
+        6)
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA NEGOCIO                      ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            
+            # --- STEP 1: DATABASE REPLICA ---
+            log_info "[Paso 1/5] Lanzando Base de Datos Réplica..."
+            if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
+                sudo docker stack deploy -c /app_psql/packague_bd/stack/replica-stack.yml pg_replica > /dev/null
+                log_success "Instrucción de despliegue enviada a la API de Swarm."
+            else 
+                log_error "Manifiesto crítico ausente: 'replica-stack.yml'"
+                exit 1
+            fi
+            
+            countdown 60 "Estabilizando la replica"
+            echo -e "\n${BOLD} Verificando replica):${COLOR_RESET}"
+            sudo docker stack ps pg_replica --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            
+            # --- STEP 2: PGAGENT BROKERS ---
+            log_info "[Paso 2/5] Lanzando Clúster Distribuido de pgagent..."        
+            if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
+                sudo docker stack deploy -c /app_psql/pgagent/pgagent-stack.yml pgagent
+                log_success "Instrucción de despliegue enviada a la API de Swarm."
+            else 
+                log_error "El manifiesto 'pgagent-stack.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+            
+            countdown 30 "Estabilizando servicio e inicializando PGAGENT"
+            echo -e "\n${BOLD} Verificación de salud (PGAGENT):${COLOR_RESET}"
+            sudo docker stack ps pgagent --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 3: KAFKA BROKERS ---
+            log_info "[Paso 3/5] Lanzando Clúster Distribuido de Kafka..."
+            if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
+                sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka > /dev/null
+                log_success "Instrucción de despliegue enviada a la API de Swarm."
+            else 
+                log_error "Manifiesto crítico ausente: 'kafka.yml'"
+                exit 1
+            fi
+            
+            countdown 30 "Sincronizando la topología y cuórum de Brokers (Kafka)"
+            echo -e "\n${BOLD} Verificación de salud (Kafka Cluster):${COLOR_RESET}"
+            sudo docker stack ps kafka --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 4: CORE MICROSERVICES ---
+            log_info "[Paso 4/5] Lanzando Ecosistema de Microservicios (SIMF)..."
+            if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
+                sudo docker stack deploy -c /app_services/app_simf/stack-simf.yml simf > /dev/null
+                log_success "Instrucción de despliegue enviada a la API de Swarm."
+            else 
+                log_error "Manifiesto crítico ausente: 'stack-simf.yml'"
+                exit 1
+            fi
+            
+            countdown 30 "Esperando el levantamiento y self-healing de las API Rest y Workers"
+            echo -e "\n${BOLD} Verificación de salud (SIMF Microservices):${COLOR_RESET}"
+            sudo docker stack ps simf --no-trunc | head -n 4
+
+
+            # --- STEP 5: CORE MICROSERVICES ---
+            log_info "[Paso 5/5] Lanzando Ecosistema de Microservicios (SIMF)..."
+            if [ -f "/app_services/app_sglpar/stack-sglpar.yml" ]; then 
+                sudo docker stack deploy -c /app_services/app_sglpar/stack-sglpar.yml sglpar > /dev/null
+                log_success "Instrucción de despliegue enviada a la API de Swarm."
+            else 
+                log_error "Manifiesto crítico ausente: 'stack-sglpar.yml'"
+                exit 1
+            fi
+            
+            countdown 30 "Esperando el levantamiento y self-healing de las API Rest y Workers"
+            echo -e "\n${BOLD} Verificación de salud (SGLPAR Microservices):${COLOR_RESET}"
+            sudo docker stack ps sglpar --no-trunc | head -n 4
+
+
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (NEGOCIO) COMPLETO           ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+            break
+            ;;
+            
+        
+        
+        7)
+
+            # --- INICIO DEL PIPELINE DE DESPLIEGUE OBSERVABILIDAD ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL OBSERVABILIDAD            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"  
+            
+            # --- STEP 1: Service discovery
+            log_info "[Paso 1/7] Lanzando Service Discovery"
+            if [ -f "/metrics/service_discovery/discovery-stack.yml" ]; then
+                sudo docker stack deploy -c /metrics/service_discovery/discovery-stack.yml discovery > /dev/null
+                log_success "Instrucción de despliegue de discovery enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/service_discovery/discovery-stack.yml'"
+            fi
+
+            countdown 15 "Estabilizando el discovery"
+            echo -e "\n${BOLD} Verificando estado del discovery:${COLOR_RESET}"
+            sudo docker stack ps discovery --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 2: Prometheus
+            log_info "[Paso 2/7] Lanzando Prometheus"
+            if [ -f "/core/prometheus/stacks/stack-prometheus.yml" ]; then
+                sudo docker stack deploy -c /core/prometheus/stacks/stack-prometheus.yml prometheus > /dev/null
+                log_success "Instrucción de despliegue de prometheus enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/core/prometheus/stacks/stack-prometheus.yml'"
+            fi
+
+            countdown 20 "Estabilizando prometheus"
+            echo -e "\n${BOLD} Verificando estado de prometheus:${COLOR_RESET}"
+            sudo docker stack ps prometheus --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 3: Alloy
+            log_info "[Paso 3/7] Lanzando Alloy"
+            if [ -f "/metrics/alloy/observability.yml" ]; then
+                sudo NODE_IP=$(hostname -I | awk '{print $1}') docker stack deploy -c /metrics/alloy/observability.yml alloy > /dev/null
+                log_success "Instrucción de despliegue de alloy enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/alloy/observability.yml'"
+            fi
+
+            countdown 15 "Estabilizando el Alloy"
+            echo -e "\n${BOLD} Verificando estado del discovery:${COLOR_RESET}"
+            sudo docker stack ps alloy --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 4: loki
+            log_info "[Paso 4/7] Lanzando loki/minio"
+            if [ -f "/core/loki/stacks/stack-loki.yml" ]; then
+                sudo docker stack deploy -c /core/loki/stacks/stack-loki.yml loki > /dev/null
+                log_success "Instrucción de despliegue de loki/minio enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/core/loki/stacks/stack-loki.yml'"
+            fi
+
+            countdown 15 "Estabilizando el loki/minio"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            log_info "CREANDO BUCKET PARA LOKI"
+            sudo docker exec -it $(sudo docker ps -q --filter "name=loki_minio") sh -c "mc alias set local http://localhost:9000 minioadmin matrix1357 && mc mb local/loki"
+            log_info "Renderizando lista de buckets"
+
+            countdown 2 
+            echo -e "\n${BOLD} Verificando estado del loki/minio:${COLOR_RESET}"
+            sudo docker stack ps loki --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 5: alertmanager
+            log_info "[Paso 5/7] Lanzando alertmanager"
+            if [ -f "/metrics/alertmanager/stacks/stack-alarm-manager.yml" ]; then
+                sudo docker stack deploy -c /metrics/alertmanager/stacks/stack-alarm-manager.yml alertmanager
+                log_success "Instrucción de despliegue de alertmanager enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/alertmanager/stacks/stack-alarm-manager.yml'"
+            fi
+
+            countdown 15 "Estabilizando el alertmanager"
+            echo -e "\n${BOLD} Verificando estado del alertmanager:${COLOR_RESET}"
+            sudo docker stack ps alertmanager --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 6: alertmanager
+            log_info "[Paso 6/7] Lanzando Grafana"
+            if [ -f "/metrics/grafana/stacks/stack-grafana.yml" ]; then
+                sudo docker stack deploy -c /metrics/grafana/stacks/stack-grafana.yml grafana
+                log_success "Instrucción de despliegue de grafana enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/grafana/stacks/stack-grafana.yml'"
+            fi
+
+            countdown 15 "Estabilizando el grafana"
+            echo -e "\n${BOLD} Verificando estado del grafana:${COLOR_RESET}"
+            sudo docker stack ps grafana --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+
+            # --- STEP 7: pool-exporter
+            log_info "[Paso 7/7] Lanzando pool-exporter"
+            if [ -f "/metrics/pool-exporter/pgpool-exporter-stack.yml" ]; then
+                sudo docker stack deploy -c /metrics/pool-exporter/pgpool-exporter-stack.yml pool-exporter
+                log_success "Instrucción de despliegue de pool-exporter enviada a la API de Swarm"
+            else 
+                log_error "Stack crítico ausente: '/metrics/pool-exporter/pgpool-exporter-stack.yml'"
+            fi
+
+            countdown 15 "Estabilizando el pool-exporter"
+            echo -e "\n${BOLD} Verificando estado del pool-exporter:${COLOR_RESET}"
+            sudo docker stack ps pool-exporter --no-trunc | head -n 4
+            echo -
+
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (OBSERVABILIDAD) COMPLETO   ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+
+
+            # --- INICIO DEL PIPELINE DE DESPLIEGUE BALANCEADOR ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL BALANCEADOR               ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            
+            # --- STEP 1: ARGUS
+            log_info "[Paso 1/3] Lanzando Argus"
+            if [ -f "/balancer/nginx/simf/argus/stack-argus.yml" ]; then
+                sudo docker stack deploy -c /balancer/nginx/simf/argus/stack-argus.yml argus > /dev/null
+                log_success "Instrucción de despliegue de Argus enviada a la API de Swarm"
+            else 
+                log_error "Manifiesto crítico ausente: '/balancer/nginx/simf/argus/stack-argus.yml'"
+            fi
+
+            countdown 30 "Estabilizando Argus"
+            echo -e "\n${BOLD} Verificando estado de Argus:${COLOR_RESET}"
+            sudo docker stack ps argus --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"            
+            
+            # --- STEP 2: NGINX
+            log_info "[Paso 2/3] Lanzando Nginx"
+            if [ -f "/balancer/nginx/simf/nginx-optimized.conf" ]; then
+                sudo docker stack deploy -c /balancer/nginx/simf/nginx-stack.yml nginx > /dev/null
+                log_success "Instrucción de despliegue de Nginx enviada a la API de Swarm"
+            else 
+                log_error "Manifiesto crítico ausente: '/balancer/nginx/simf/nginx-optimized.conf'"
+            fi
+
+            countdown 20 "Estabilizando el Nginx"
+            echo -e "\n${BOLD} Verificando estado de Nginx:${COLOR_RESET}"
+            sudo docker stack ps nginx --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            # --- STEP 3: POOL
+            log_info "[Paso 3/3] Lanzando Pgpool"
+            if [ -f "/balancer/pgpool-conf/pgpool-stack.yml" ]; then
+                sudo docker stack deploy -c /balancer/pgpool-conf/pgpool-stack.yml pgpool > /dev/null
+                log_success "Instrucción de despliegue de Pgpool enviada a la API de Swarm"
+            else 
+                log_error "Manifiesto crítico ausente: '/balancer/pgpool-conf/pgpool-stack.yml'"
+            fi
+
+            countdown 30 "Estabilizando el Pool"
+            echo -e "\n${BOLD} Verificando estado del Pool:${COLOR_RESET}"
+            sudo docker stack ps pgpool --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"            
+            
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (BALANCEADOR) COMPLETO                  ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+
+
+            
+            # --- RESUMEN DE ENTREGA ---
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  Pipeline Ejecutado: DESPLIEGUE GLOBAL (BALANCEADOR) COMPLETO                  ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            log_info "A continuación se renderiza el estado global de servicios activos:"
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+            sudo docker service ls
+
+
+            break
+            ;;
+
+        8)
+            echo -e "\n${CRIMSON_RED}➔ Desconectando del Gestor de Swarm. Saliendo del flujo de orquestación. ¡Adiós Papu!${COLOR_RESET}"
+            exit 0
+            ;;
+        
+        *)
+            log_error "'$opcion' no es una directiva válida de orquestación. Intente de nuevo.\n"
+            ;;
+    esac
+done
