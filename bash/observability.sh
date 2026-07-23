@@ -42,7 +42,7 @@ MOUNT_OVERLAY="/overlay/"
 
 # ruta de la imagen
 IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
-IMAGE_PATH_ARGUS="/balancer/nginx/simf/argus/api/api/argus_api_v7_1_7_0.tar"
+IMAGE_PATH_ARGUS="/balancer/nginx/simf/argus/api/argus_api_v7_1_7_0.tar"
 IMAGE_PATH_MINIO="/core/loki/images/minio-sha14cea498d.tar"
 IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar"
 IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.tar"
@@ -240,6 +240,7 @@ if [ -d "${MOUNT_CORE}prometheus" ]; then
     fi
 
     # --- PERMISOS PROMETHEUS ---
+    sudo rm -rf "${MOUNT_CORE}prometheus/data"
     sudo mkdir "${MOUNT_CORE}prometheus/data"
     if [ -d "${MOUNT_CORE}prometheus/data" ]; then
         log_success "Repo creado"
@@ -434,7 +435,7 @@ if [ -d "${MOUNT_METRICS}pool-exporter" ]; then
         log_info "El secret ${PGPOOL_DNS} no fue detectado en el cluster, preparando inyección..."
         
         # Usamos variables para armar la cadena (o idealmente pasas el DSN desde fuera)
-        DB_URI="postgresql://postgres:PO\$tgr3\$.BD@pgpool:9997/postgres?sslmode=disable"
+        DB_URI="postgresql://simf_admin_user:simf@tasks.pgpool_pgpool:9997/postgres?sslmode=disable&connect_timeout=5" 
         
         printf "%s" "$DB_URI" | docker secret create "$PGPOOL_DNS" - >/dev/null 2>&1
         
@@ -498,7 +499,6 @@ else
     log_error "[Error]: No fue localizada la paqueteria en el punto de montaje"
 fi
 
-
 # ==============================================================================
 # INICIO DE LA CONFIGURACION DE ARGUS
 # ==============================================================================
@@ -508,18 +508,20 @@ echo -e "${NEON_GREEN}${BOLD}  FASE 7: PROCESO DE CONFIGURACIÓN DE ARGUS       
 echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
 log "Verificando paqueteria"
-if [ -d"${MOUNT_BALANCER}nginx/simf/argus" ]; then
+if [ -d "${MOUNT_BALANCER}nginx/simf/argus" ]; then
     log_success "Paqueteria detectada"
     log_info "Verificando imagen"
-    if [[ -z "$(sudo docker image -q $IMG_NAME_ARGUS 2> /dev/null)" ]];then 
+    
+    if [[ -z "$(sudo docker image -q "$IMG_NAME_ARGUS" 2> /dev/null)" ]]; then 
         log_info "La imagen no existe en este nodo, verificando la existencia del .tar"
-        if [ -f "$IMAGE_PATH_ARGUS" ]; then 
+        
+        if [ -n "$IMAGE_PATH_ARGUS" ] && [ -f "$IMAGE_PATH_ARGUS" ]; then 
             log_warning "Cargando imagen..."
             sudo docker load -i "$IMAGE_PATH_ARGUS" > /dev/null 2>&1 &
             spinner $!
         else 
-            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada $IMAGE_PATH_ARGUS"
-            exit ;
+            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada: '${IMAGE_PATH_ARGUS:-[RUTA VACÍA]}'"
+            exit 1
         fi
     else 
         log_info "La imagen ($IMG_NAME_ARGUS) ya existe, Omitiendo este paso..."
@@ -530,13 +532,11 @@ if [ -d"${MOUNT_BALANCER}nginx/simf/argus" ]; then
     echo -e "${NEON_GREEN}${BOLD}  CONFIGURACIÓN DE ARGUS FINALIZADA                                 ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
-    # PAUSA : Finalización del la configuracion de argus
     press_to_continue
 
 else 
     log_error "[Error]: No fue localizada la paqueteria, abortando configuracion de argus"
 fi
-
 
 
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
@@ -546,4 +546,3 @@ sudo docker image ls
 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN OBSERVABILIDAD FINALIZADO               ${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-        

@@ -48,10 +48,12 @@ MOUNT_OVERLAY="/overlay/"
 # ruta de la imagen
 
 IMAGE_PATH_NGINX="/balancer/nginx/simf/nginx.tar"
+IMAGE_PATH_NGINX_EXPORTER="/balancer/nginx/simf/nginx-exporter.tar"
 IMAGE_PATH_POOL="/balancer/pgpool-conf/pgpool.tar"
 
 # nombre imagen
 IMG_NAME_NGINX="nginx:1.27"
+IMG_NAME_NGINX_EXPORTER="nginx/nginx-prometheus-exporter:1.1.0"
 IMG_NAME_POOL="pgpool/pgpool:latest"
 
 DAEMON_JSON="/etc/docker/daemon.json"
@@ -204,7 +206,7 @@ log_info "Verificando paqueteria"
 if [ -d "${MOUNT_BALANCER}nginx" ]; then
     log_success "Paqueteria detectada"
 
-    log_info "Verificacion de imagen"
+    log_info "Verificacion de imagenes"
        if [[ -z "$(sudo docker image -q $IMG_NAME_NGINX 2> /dev/null)" ]]; then
            log_info "La imagen no existe en este nodo, verificando (.tar)"
            if [ -f "$IMAGE_PATH_NGINX" ]; then
@@ -218,6 +220,18 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
            log_info "La imagen ($IMG_NAME_NGINX) ya existe, Omitiendo este paso..."
        fi
 
+       if [[ -z "$(sudo docker image -q $IMG_NAME_NGINX_EXPORTER 2> /dev/null)" ]]; then
+           log_info "La imagen no existe en este nodo, verificando (.tar)"
+           if [ -f "$IMAGE_PATH_NGINX_EXPORTER" ]; then
+               log_warning "Cargando Imagen" 
+               sudo docker load -i "$IMAGE_PATH_NGINX_EXPORTER" > /dev/null 2>&1 &
+               spinner $!
+           else
+               log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_NGINX"
+           fi
+       else 
+           log_info "La imagen ($IMG_NAME_NGINX_EXPORTER) ya existe, Omitiendo este paso..."
+       fi
 
     # --- INYECCIÓN DE LABELS ---
     log_info "Inyeccion de etiquetas (labels)"
