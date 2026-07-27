@@ -68,22 +68,44 @@ if [ -d "$MOUNT_METRICS" ]; then
             
     log_info "Sincronizando registro local de imágenes en Docker Engine..."
     
-    # --------------------------------------------------------------------------
-    # GESTIÓN INDEPENDIENTE: GRAFANA ALLOY
-    # --------------------------------------------------------------------------
-    if [[ -z "$(sudo docker images -q "$IMG_NAME_ALLOY" 2>/dev/null)" ]]; then
-        log_warning "Grafana Alloy ausente en el host. Verificando distribución..."
-        if [ -f "$IMAGE_PATH_ALLOY" ]; then
-            echo -n "   Cargando Grafana Alloy ($IMG_NAME_ALLOY)..."
-            sudo docker load -i "$IMAGE_PATH_ALLOY" > /dev/null 2>&1 &
-            spinner $!
-        else
-            log_error "Archivo crítico ausente: $IMAGE_PATH_ALLOY"
-            exit 1
-        fi
+# --------------------------------------------------------------------------
+# GESTIÓN INDEPENDIENTE: GRAFANA ALLOY
+# --------------------------------------------------------------------------
+  if [[ -z "$(sudo docker images -q "$IMG_NAME_ALLOY" 2>/dev/null)" ]]; then
+    log_warning "Grafana Alloy ausente en el host. Verificando distribución..."
+    
+    if [ -f "$IMAGE_PATH_ALLOY" ]; then
+        echo -n "   Cargando Grafana Alloy ($IMG_NAME_ALLOY)..."
+        sudo docker load -i "$IMAGE_PATH_ALLOY" > /dev/null 2>&1 &
+        spinner $!
     else
-        log_success "Grafana Alloy ya se encuentra en el caché del sistema."
+        log_error "Archivo crítico ausente: $IMAGE_PATH_ALLOY"
+        exit 1
     fi
+
+    ALLOY_PATH="${MOUNT_METRICS}/alloy_data"
+
+    # Depuración previa si el directorio destino existe
+    if [ -d "$ALLOY_PATH" ]; then 
+        log_info "Repo de alloy_data detectado. Depurando respaldos viejos..."
+        sudo rm -rf "$ALLOY_PATH"
+    else
+        log_info "Repo alloy_data no detectado. Creando directorio..."
+    fi
+
+    # Creación y permisos unificados
+    sudo mkdir -p "$ALLOY_PATH"
+    log_info "Asignando permisos al repo en $ALLOY_PATH"
+    
+    # Recomendado: Si conoces el UID de Alloy úsalo con chown. 
+    # De lo contrario, mantenemos chmod de forma segura:
+    sudo chmod 777 -R "$ALLOY_PATH"
+
+    log_success "Repo alloy_data preparado correctamente."
+
+  else
+    log_success "Grafana Alloy ya se encuentra en el caché del sistema."
+  fi
 
     # --------------------------------------------------------------------------
     # GESTIÓN INDEPENDIENTE: SERVICE DISCOVERY API
