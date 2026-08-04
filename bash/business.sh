@@ -65,8 +65,8 @@ IMAGE_PATH_PGAGENT="/app_psql/pgagent/pgagent.tar"
 IMAGE_PATH_SIMF_REST="/app_services/app_simf/image/simf_rest_api_0_2_2.tar"
 IMAGE_PATH_SIMF_MS="/app_services/app_simf/image/simf_ms_0_2_2.tar"
 
-IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sglpar_api.tar"
-IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sglpar_ms.tar"
+IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sycom_sglpar_rest_api_0.2.3.tar" 
+IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sycom_sglpar_ms_0.2.3.tar"
 
 
 IMAGE_PATH_KAFKA="/kafka/kafka/images/projectsintel-kafka-simf-v7_1.0.2.tar"
@@ -82,8 +82,8 @@ IMG_NAME_KAFKA="projectsintel/kafka-simf-v7:1.0.2"
 IMG_NAME_SIMF_REST="sycom/simf_rest_api:0.2.2"
 IMG_NAME_SIMF_MS="sycom/simf_ms:0.2.2"
 
-IMG_NAME_SGLPAR_REST="sycom/slgpar_rest_api:0.2.2"
-IMG_NAME_SGLPAR_MS="sycom/slgpar_ms:0.2.2"
+IMG_NAME_SGLPAR_REST="sycom/sycom_sglpar_rest_api_0.2.3"
+IMG_NAME_SGLPAR_MS="sycom/sycom_sglpar_ms_0.2.3"
 
 
 NAME_POSTGRES="postgre_password"
@@ -112,20 +112,44 @@ spinner() {
 
 
 # ==============================================================================
-# CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS Y MTU)
+# CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS, MTU, LOGS Y DATA-ROOT)
 # ==============================================================================
 echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local..."
 
-# Validamos si el archivo daemon.json ya contiene la configuración de ulimits
-if [ -f "$DAEMON_JSON" ] && grep -q "default-ulimits" "$DAEMON_JSON"; then
-    echo -e "${YELLOW} La configuración de ulimits/mtu ya existe en $DAEMON_JSON. Saltando..."
+# Validamos si el archivo daemon.json ya contiene la configuración de logs y data-root
+if [ -f "$DAEMON_JSON" ] && grep -q "data-root" "$DAEMON_JSON" && grep -q "max-size" "$DAEMON_JSON"; then
+    echo -e "${YELLOW} La configuración de daemon.json ya contiene data-root y rotación de logs. Saltando..."
 else
-    echo "Aplicando optimización de nofile (65536) y MTU (1450) en el daemon local..."
-    sudo echo '{ "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }, "mtu": 1450 }' | sudo tee "$DAEMON_JSON" > /dev/null
-    sudo systemctl restart docker
-    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado con éxito."
+    echo "Aplicando optimizaciones en $DAEMON_JSON (data-root=/overlay, ulimits, mtu y log-opts)..."
 
+    cat <<'EOF' | sudo tee "$DAEMON_JSON" > /dev/null
+{
+  "data-root": "/overlay",
+  "mtu": 1450,
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 65536,
+      "Soft": 65536
+    }
+  },
+  "log-driver": "json-file",
+  "log-opts": {
+    "mode": "non-blocking",
+    "max-buffer-size": "4m",
+    "max-size": "10m",
+    "max-file": "5",
+    "compress": "true"
+  }
+}
+EOF
+
+    echo "Reiniciando el servicio de Docker para aplicar cambios..."
+    sudo systemctl restart docker
+    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado e integrado con éxito."
 fi
+
+
 echo -e "-----------------------------------------------------------------"
 
 

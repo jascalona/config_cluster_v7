@@ -44,7 +44,7 @@ while true; do
     echo -e "  ${DEEP_BLUE}4)${COLOR_RESET} Lanzar Stack MS (SIMF)"
     echo -e "  ${DEEP_BLUE}5)${COLOR_RESET} Lanzar Stack MS (SGLPAR)"
     echo -e "  ${DEEP_BLUE}6)${COLOR_RESET} Lanzamiento secuencial para Negocio"
-    echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Lanzamiento secuencial para Observabilidad y Balanceador"
+    echo -e "  ${DEEP_BLUE}7)${COLOR_RESET} Lanzamiento secuencial para Observabilidad y Balanceador (Ejecutar solo desde el servidor de Observabilidad)"
     echo -e "  ${DEEP_BLUE}8)${COLOR_RESET} Salir del Orquestador"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 

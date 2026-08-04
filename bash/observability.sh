@@ -42,7 +42,7 @@ MOUNT_OVERLAY="/overlay/"
 
 # ruta de la imagen
 IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
-IMAGE_PATH_ARGUS="/balancer/nginx/simf/argus/api/argus_api_v7_1_7_0.tar"
+IMAGE_PATH_ARGUS="/balancer/nginx/simf/argus/api/argus_api_v7_1_7_8.tar"
 IMAGE_PATH_MINIO="/core/loki/images/minio-sha14cea498d.tar"
 IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar"
 IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.tar"
@@ -50,7 +50,7 @@ IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
 IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
 IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 # nombre imagen
-IMG_NAME_ARGUS="argus_api_v7:1.7.0"
+IMG_NAME_ARGUS="argus_api_v7_1_7_8"
 IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
 IMG_NAME_LOKI="grafana/loki:3.7.2"
 IMG_NAME_MINIO="minio/minio:latest"
@@ -58,6 +58,7 @@ IMG_NAME_GRAFANA="grafana/grafana:12.4.4-ubuntu"
 IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
 IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
 
+DAEMON_JSON="/etc/docker/daemon.json"
 
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
@@ -88,6 +89,46 @@ countdown() {
     done
     printf "\r ${NEON_GREEN}✔${COLOR_RESET} $msg... ¡Tiempo cumplido!     \n"
 }
+
+
+
+# ==============================================================================
+# CONFIGURACION DEL DAEMON DE DOCKER LOCAL (ULIMITS, MTU, LOGS Y DATA-ROOT)
+# ==============================================================================
+echo -e "\n${MAGENTA}[PASO 0/4] Verificando configuración del daemon de Docker local..."
+
+# Validamos si el archivo daemon.json ya contiene la configuración de logs y data-root
+if [ -f "$DAEMON_JSON" ] && grep -q "data-root" "$DAEMON_JSON" && grep -q "max-size" "$DAEMON_JSON"; then
+    echo -e "${YELLOW} La configuración de daemon.json ya contiene data-root y rotación de logs. Saltando..."
+else
+    echo "Aplicando optimizaciones en $DAEMON_JSON (data-root=/overlay, ulimits, mtu y log-opts)..."
+
+    cat <<'EOF' | sudo tee "$DAEMON_JSON" > /dev/null
+{
+  "data-root": "/overlay",
+  "mtu": 1450,
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 65536,
+      "Soft": 65536
+    }
+  },
+  "log-driver": "json-file",
+  "log-opts": {
+    "mode": "non-blocking",
+    "max-buffer-size": "4m",
+    "max-size": "10m",
+    "max-file": "5",
+    "compress": "true"
+  }
+}
+EOF
+
+    echo "Reiniciando el servicio de Docker para aplicar cambios..."
+    sudo systemctl restart docker
+    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado e integrado con éxito."
+fi
 
 
 # ==============================================================================
