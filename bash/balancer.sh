@@ -45,16 +45,6 @@ MOUNT_METRICS="/metrics/"
 MOUNT_LOGS="/logs/"
 MOUNT_OVERLAY="/overlay/"
 
-# ruta de la imagen
-
-IMAGE_PATH_NGINX="/balancer/nginx/simf/nginx.tar"
-IMAGE_PATH_NGINX_EXPORTER="/balancer/nginx/simf/nginx-exporter.tar"
-IMAGE_PATH_POOL="/balancer/pgpool-conf/pgpool.tar"
-
-# nombre imagen
-IMG_NAME_NGINX="nginx:1.27"
-IMG_NAME_NGINX_EXPORTER="nginx/nginx-prometheus-exporter:1.1.0"
-IMG_NAME_POOL="pgpool/pgpool:latest"
 
 DAEMON_JSON="/etc/docker/daemon.json"
 
@@ -228,32 +218,11 @@ log_info "Verificando paqueteria"
 if [ -d "${MOUNT_BALANCER}nginx" ]; then
     log_success "Paqueteria detectada"
 
-    log_info "Verificacion de imagenes"
-       if [[ -z "$(sudo docker image -q $IMG_NAME_NGINX 2> /dev/null)" ]]; then
-           log_info "La imagen no existe en este nodo, verificando (.tar)"
-           if [ -f "$IMAGE_PATH_NGINX" ]; then
-               log_warning "Cargando Imagen" 
-               sudo docker load -i "$IMAGE_PATH_NGINX" > /dev/null 2>&1 &
-               spinner $!
-           else
-               log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_NGINX"
-           fi
-       else 
-           log_info "La imagen ($IMG_NAME_NGINX) ya existe, Omitiendo este paso..."
-       fi
+   
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_nginx
 
-       if [[ -z "$(sudo docker image -q $IMG_NAME_NGINX_EXPORTER 2> /dev/null)" ]]; then
-           log_info "La imagen no existe en este nodo, verificando (.tar)"
-           if [ -f "$IMAGE_PATH_NGINX_EXPORTER" ]; then
-               log_warning "Cargando Imagen" 
-               sudo docker load -i "$IMAGE_PATH_NGINX_EXPORTER" > /dev/null 2>&1 &
-               spinner $!
-           else
-               log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_NGINX"
-           fi
-       else 
-           log_info "La imagen ($IMG_NAME_NGINX_EXPORTER) ya existe, Omitiendo este paso..."
-       fi
 
     # --- INYECCIÓN DE LABELS ---
     log_info "Inyeccion de etiquetas (labels)"
@@ -431,19 +400,10 @@ clear
     if [ -d "${MOUNT_BALANCER}pgpool-conf/" ]; then
         log_success "Paqueteria detectada"
         
-        log_info "Verificacion de imagen"
-        if [[ -z "$(sudo docker image -q $IMG_NAME_POOL 2> /dev/null)" ]]; then
-            log_info "La imagen no existe en este nodo, verificando"
-            if [ -f "$IMAGE_PATH_POOL" ]; then
-                log_warning "Cargando Imagen" 
-                sudo docker load -i "$IMAGE_PATH_POOL" > /dev/null 2>&1 &
-                spinner $!
-            else
-                log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_POOL"
-            fi
-        else 
-            log_info "La imagen ($IMG_NAME_POOL) ya existe, Omitiendo este paso..."
-        fi
+
+        # Invocacando la configuracion del binario
+        log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+        sudo bash binary_verification.sh binaries_pool
 
         # --- CONFIGURACIÓN E INYECCIÓN ---
         log_info "Validando existencia de secrets en Docker Swarm..."

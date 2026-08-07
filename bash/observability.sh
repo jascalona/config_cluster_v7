@@ -254,37 +254,17 @@ log_warning "Verificando paqueteria"
 if [ -d "${MOUNT_CORE}prometheus" ]; then 
     log_success "Paqueteria detectada"
 
-    log_info "Verificacion de imagen"
-    if [[ -z "$(sudo docker image -q "$IMG_NAME_PROMETHEUS" 2> /dev/null)" ]]; then
-        log_info "La imagen no existe en este nodo, verificando (.tar)"
-        if [ -f "$IMAGE_PATH_PROMETHEUS" ]; then
-            log_warning "Cargando Imagen..." 
-            sudo docker load -i "$IMAGE_PATH_PROMETHEUS" > /dev/null 2>&1 &
-            spinner $!
-        
-            # Validamos si el docker load fue exitoso
-            wait $!
-            if [ $? -eq 0 ]; then
-                log_success "Imagen cargada exitosamente"
-            else
-                log_error "[Error]: Falló la carga de la imagen desde $IMAGE_PATH_PROMETHEUS"
-                press_to_continue
-                exit 1 # O un return si está dentro de una función
-            fi
-        else
-            log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_PROMETHEUS"
-            press_to_continue
-            exit 1
-        fi
-    else 
-        log_info "La imagen ($IMG_NAME_PROMETHEUS) ya existe, Omitiendo este paso..."
-    fi
+    
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_prometheus
 
     # --- PERMISOS PROMETHEUS ---
+    log_info "GESTION DEL REPO (DATA-PROMETHEUS)"
     sudo rm -rf "${MOUNT_CORE}prometheus/data"
     sudo mkdir "${MOUNT_CORE}prometheus/data"
     if [ -d "${MOUNT_CORE}prometheus/data" ]; then
-        log_success "Repo creado"
+        log_success "Repo creado con exito"
     else 
         log_error "Ocurrio un error al crear el repo data"
     fi
@@ -337,28 +317,12 @@ log_warning "Verificando paqueteria"
 if [ -d ${MOUNT_CORE}loki ]; then
     log_info "Paqueteria detectada"
 
-    log_info "Verificacion de imagenes"
-    if [[ -z "$(sudo docker images -q $IMG_NAME_LOKI 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_MINIO 2> /dev/null)" ]]; then
-        log_info "Las imagen no existe en este nodo, verificando (.tar)"
-        if [ -f "$IMAGE_PATH_LOKI" ] && [ -f "$IMAGE_PATH_MINIO" ] ; then
-            log_warning "Cargando Imagenes..." 
-            
-            sudo docker load -i "$IMAGE_PATH_LOKI" > /dev/null 2>&1 &
-            spinner $!
-
-            sudo docker load -i "$IMAGE_PATH_MINIO" > /dev/null 2>&1 &
-            spinner $!
-
-        else
-            log_error "[Error]: No fueron localizadas la imagen en la ruta especificada $IMAGE_PATH_LOKI y $IMAGE_PATH_MINIO"
-            exit 1
-        fi
-    else 
-        log_info "Las imagen ($IMAGE_PATH_LOKI y $IMAGE_PATH_MINIO) ya existen, Omitiendo este paso..."
-    fi    
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_loki
 
     # --- LOKI ---
-    log_info "Ajustando el repo data para loki"
+    log_info "Ajustando el repo Data-loki"
     if [ -d "${MOUNT_CORE}loki" ]; then 
         echo "Punto de montaje detectado"
         sudo mkdir -p "${MOUNT_CORE}loki/loki_data"
@@ -368,9 +332,7 @@ if [ -d ${MOUNT_CORE}loki ]; then
         echo "ERROR: No se encontro el punto de montaje $MOUNT_CORE"
     fi
 
-
     echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-    log_info "AJUSTANDO DISTRIBUCION DE MINIO"
     # --- MINIO ---
     log_info "Ajustando el repo data para minio"
     if [ -d "$MOUNT_MINIO" ]; then 
@@ -407,19 +369,9 @@ log_info "Verificando paqueteria"
 if [ -d "${MOUNT_METRICS}grafana" ]; then
     log_success "Paqueteria detectada"
         
-    log_info "Verificacion de imagen"
-    if [[ -z "$(sudo docker image -q $IMG_NAME_GRAFANA 2> /dev/null)" ]]; then
-        log_info "La imagen no existe en este nodo, verificando paqueteria"
-        if [ -f "$IMAGE_PATH_GRAFANA" ]; then
-            log_warning "Cargando Imagen..." 
-            sudo docker load -i "$IMAGE_PATH_GRAFANA" > /dev/null 2>&1 &
-            spinner $!
-        else
-            log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_GRAFANA"
-        fi
-    else 
-        log_info "La imagen ($IMG_NAME_GRAFANA) ya existe, Omitiendo este paso..."
-    fi
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_grafana
 
     # --- GRAFANA ---
     log_info "Aignando permisos al repo de grafana"
@@ -452,19 +404,12 @@ log_info "Verificando paqueteria"
 if [ -d "${MOUNT_METRICS}pool-exporter" ]; then
     log_success "Paqueteria detectada"
         
-    log_info "Verificacion de imagen"
-    if [[ -z "$(sudo docker image -q $IMG_NAME_POOLEXPORTER 2> /dev/null)" ]]; then
-        log_info "La imagen no existe en este nodo, verificando paqueteria"
-        if [ -f "$IMAGE_PATH_POOLEXPORTER" ]; then
-            log_warning "Cargando Imagen..." 
-            sudo docker load -i "$IMAGE_PATH_POOLEXPORTER" > /dev/null 2>&1 &
-            spinner $!
-        else
-            log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_PATH_ALERT"
-        fi
-    else 
-        log_info "La imagen ($IMG_NAME_POOLEXPORTER) ya existe, Omitiendo este paso..."
-    fi
+
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_pool_exporter
+
+    # CONFIGURACION SECRET
 
     PGPOOL_DNS="pgpool_dsn"
 
@@ -514,19 +459,10 @@ log_info "Verificando paqueteria"
 if [ -d "${MOUNT_METRICS}alertmanager" ]; then
     log_success "Paqueteria detectada"
         
-    log_info "Verificacion de imagen"
-    if [[ -z "$(sudo docker image -q $IMG_NAME_ALERT 2> /dev/null)" ]]; then
-        log_info "La imagen no existe en este nodo, verificando paqueteria"
-        if [ -f "$IMAGE_PATH_ALERT" ]; then
-            log_warning "Cargando Imagen..." 
-            sudo docker load -i "$IMAGE_PATH_ALERT" > /dev/null 2>&1 &
-            spinner $!
-        else
-            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada $IMAGE_PATH_ALERT"
-        fi
-    else 
-        log_info "La imagen ($IMG_NAME_ALERT) ya existe, Omitiendo este paso..."
-    fi
+
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_alertmanager
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
@@ -551,22 +487,11 @@ echo -e "${NEON_GREEN}${BOLD}===================================================
 log "Verificando paqueteria"
 if [ -d "${MOUNT_BALANCER}nginx/simf/argus" ]; then
     log_success "Paqueteria detectada"
-    log_info "Verificando imagen"
     
-    if [[ -z "$(sudo docker image -q "$IMG_NAME_ARGUS" 2> /dev/null)" ]]; then 
-        log_info "La imagen no existe en este nodo, verificando la existencia del .tar"
-        
-        if [ -n "$IMAGE_PATH_ARGUS" ] && [ -f "$IMAGE_PATH_ARGUS" ]; then 
-            log_warning "Cargando imagen..."
-            sudo docker load -i "$IMAGE_PATH_ARGUS" > /dev/null 2>&1 &
-            spinner $!
-        else 
-            log_error "[Error]: No fue localizada la imagen (.tar) en la ruta especificada: '${IMAGE_PATH_ARGUS:-[RUTA VACÍA]}'"
-            exit 1
-        fi
-    else 
-        log_info "La imagen ($IMG_NAME_ARGUS) ya existe, Omitiendo este paso..."
-    fi 
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_argus
+
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"

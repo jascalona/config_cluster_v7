@@ -40,7 +40,6 @@ PACKAGUE_V7="/opt/Install_v7/package_business.zip"
 METRICS_V7="/opt/Install_v7/metrics.zip"
 
 
-
 MOUNT_APP_PSQ="/app_psql/"
 MOUNT_APP_SERV="/app_services/"
 MOUNT_KAFKA="/kafka/"
@@ -55,35 +54,7 @@ MOUNT_BACKUP="/backups"
 MOUNT_LOGS="/logs"
 MOUNT_OVERLAY="/overlay"
 
-IMAGE_PATH_PG_P="/app_psql/packague_bd/images/simf-primary.tar"
-IMAGE_PATH_PG_R="/app_psql/packague_bd/images/simf_replica.tar"
-IMAGE_PATH_PG_EXPORTER="/app_psql/packague_bd/images/postgres-exporter_v0.17.1.tar"
 
-IMAGE_PATH_PGAGENT="/app_psql/pgagent/pgagent.tar"
-
-
-IMAGE_PATH_SIMF_REST="/app_services/app_simf/image/simf_rest_api_0_2_2.tar"
-IMAGE_PATH_SIMF_MS="/app_services/app_simf/image/simf_ms_0_2_2.tar"
-
-IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sycom_sglpar_rest_api_0.2.3.tar" 
-IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sycom_sglpar_ms_0.2.3.tar"
-
-
-IMAGE_PATH_KAFKA="/kafka/kafka/images/projectsintel-kafka-simf-v7_1.0.2.tar"
-
-IMG_NAME_PG_P="bd-simf:latest"
-IMG_NAME_PG_R="ibp_simf_replica:latest"
-IMG_NAME_PG_EXPORTER="prometheuscommunity/postgres-exporter:v0.17.1"
-
-IMG_NAME_PGAGENT="pg_pgagent:latest"
-IMG_NAME_KAFKA="projectsintel/kafka-simf-v7:1.0.2"
-
-# MS
-IMG_NAME_SIMF_REST="sycom/simf_rest_api:0.2.2"
-IMG_NAME_SIMF_MS="sycom/simf_ms:0.2.2"
-
-IMG_NAME_SGLPAR_REST="sycom/sycom_sglpar_rest_api_0.2.3"
-IMG_NAME_SGLPAR_MS="sycom/sycom_sglpar_ms_0.2.3"
 
 
 NAME_POSTGRES="postgre_password"
@@ -275,47 +246,10 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then 
                 log_success "Punto de montaje detectado en: $MOUNT_APP_PSQ"
                 
-                # --- CARGA DE IMÁGENES BD ---
-                echo -e "\n${BOLD}[Componente: Database Engine]${COLOR_RESET}"
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_P 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PG_P" ]; then
-                        echo -n "   Cargando imagen primaria ($IMG_NAME_PG_P)..."
-                        sudo docker load -i "$IMAGE_PATH_PG_P" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_P"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PG_P ya se encuentra en el host."
-                fi
 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_R 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PG_R" ]; then
-                        echo -n "   Cargando imagen de réplica ($IMG_NAME_PG_R)..."
-                        sudo docker load -i "$IMAGE_PATH_PG_R" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_R"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PG_R ya se encuentra en el host."
-                fi
-
-                # carga de imagen para postgres-exporter
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_EXPORTER 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PG_EXPORTER" ]; then
-                        echo -n "   Cargando imagen de réplica ($IMG_NAME_PG_EXPORTER)..."
-                        sudo docker load -i "$IMAGE_PATH_PG_EXPORTER" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_EXPORTER"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PG_EXPORTER ya se encuentra en el host."
-                fi
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_postgres_and_exporter
 
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
@@ -460,18 +394,11 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then
                 log_success "Punto de montaje detectado para pgagent..."
                 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PGAGENT 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PGAGENT" ]; then 
-                        echo -n "   Cargando imagen de pgagent ($IMG_NAME_PGAGENT)..."
-                        sudo docker load -i "$IMAGE_PATH_PGAGENT" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PGAGENT"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PGAGENT ya existe en el host."
-                fi 
+               
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_pgagent
+
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
@@ -529,18 +456,10 @@ while true; do
             if [ -d "$MOUNT_KAFKA" ]; then
                 log_success "Punto de montaje detectado en: $MOUNT_KAFKA"
                 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_KAFKA 2> /dev/null)" ]]; then 
-                    if [ -f "$IMAGE_PATH_KAFKA" ]; then 
-                        echo -n "Cargando imagen de Kafka ($IMG_NAME_KAFKA)..."
-                        sudo docker load -i "$IMAGE_PATH_KAFKA" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_KAFKA"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_KAFKA ya existe en el host."
-                fi 
+               
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_kafkita
 
                 
                 echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
@@ -624,67 +543,46 @@ while true; do
             if [ -d "$MOUNT_APP_SERV" ]; then 
                 log_success "Punto de montaje detectado en: $MOUNT_APP_SERV"
                 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_SIMF_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SIMF_MS 2> /dev/null)" ]]; then 
-                    log_warning "Imágenes parciales o ausentes. Iniciando carga masiva..."
+ 
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_simf
 
-                    if [ -f "$IMAGE_PATH_SIMF_REST" ] && [ -f "$IMAGE_PATH_SIMF_MS" ]; then
-                        echo -n "   Cargando paquete REST API ($IMG_NAME_SIMF_REST)..."
-                        sudo docker load -i "$IMAGE_PATH_SIMF_REST" > /dev/null 2>&1 &
-                        spinner $!
-
-                        echo -n "   Cargando paquete Microservicios ($IMG_NAME_SIMF_MS)..."
-                        sudo docker load -i "$IMAGE_PATH_SIMF_MS" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
-                        exit 1
-                    fi
-
-                    log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
-                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                        log_success "Red balanceadora 'nginx_lbnet' existente."
-                    else
-                        log_warning "Red perimetral ausente. Creando red del balanceador..."
-                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                        log_success "Segmentación perimetral configurada."
-                    fi  
-                else 
-                    log_success "Las imágenes del ecosistema SIMF ya están sincronizadas."
-                fi 
+                # REDIRECCIONAR CONFIGURACION DE RED
+                log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
+                if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
+                    log_success "Red balanceadora 'nginx_lbnet' existente."
+                else
+                    log_warning "Red perimetral ausente. Creando red del balanceador..."
+                    sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                    log_success "Segmentación perimetral configurada."
+                fi  
+        
 
 
             # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                log_info "Escaneando imagenes..."
-                if [[ -z "$(sudo docker images -q $IMG_NAME_SGLPAR_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SGLPAR_MS 2> /dev/null)" ]]; then 
-                    log_warning "Imágenes parciales o ausentes. Iniciando carga masiva..."
+                
 
-                    if [ -f "$IMAGE_PATH_SGLPAR_REST" ] && [ -f "$IMAGE_PATH_SGLPAR_MS" ]; then
-                        echo -n "   Cargando paquete REST API ($IMG_NAME_SGLPAR_REST)..."
-                        sudo docker load -i "$IMAGE_PATH_SGLPAR_REST" > /dev/null 2>&1 &
-                        spinner $!
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_sglpar
+                
+              
+                # REDIRECCIONAR CONFIGURACION DE RED
+                echo "ESCANEANDO REDES NGINX"
 
-                        echo -n "   Cargando paquete Microservicios ($IMG_NAME_SGLPAR_MS)..."
-                        sudo docker load -i "$IMAGE_PATH_SGLPAR_MS" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
-                        exit 1
-                    fi
+                log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
+                if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
+                    log_success "Red balanceadora 'nginx_lbnet' existente."
+                else
+                    log_warning "Red perimetral ausente. Creando red del balanceador..."
+                    sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                    log_success "Segmentación perimetral configurada."
+                fi  
 
-                    log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
-                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                        log_success "Red balanceadora 'nginx_lbnet' existente."
-                    else
-                        log_warning "Red perimetral ausente. Creando red del balanceador..."
-                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                        log_success "Segmentación perimetral configurada."
-                    fi  
-                else 
-                    log_success "Las imagenes del ecosistema SGLPAR ya están sincronizadas."
-                fi 
 
                 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NODO PRINCIPAL COMPLETADO            ${COLOR_RESET}"
@@ -726,8 +624,6 @@ while true; do
             log_info "VERIFICANDO EL ESTADO DE LA BD"
             PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
 
-
-
             break
             ;;
             
@@ -741,47 +637,9 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then 
                 log_success "Punto de montaje localizado en: $MOUNT_APP_PSQ"
                 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_R 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PG_R" ]; then
-                        echo -n "   Cargando imagen replicada ($IMG_NAME_PG_R)..."
-                        sudo docker load -i "$IMAGE_PATH_PG_R" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Imagen de réplica no localizada en: $IMAGE_PATH_PG_R"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen de réplica de la base de datos ya está presente."
-                fi
-
-
-                log_info "CARAGANDO IMAGEN BD-SIMF PARA ALTA DISPONIBILIDAD"
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_P 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PG_P" ]; then
-                        echo -n "   Cargando imagen primaria ($IMG_NAME_PG_P)..."
-                        sudo docker load -i "$IMAGE_PATH_PG_P" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_P"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PG_P ya se encuentra en el host."
-                fi
-
-                # carga de imagen para postgres-exporter
-                if [[ -z "$(sudo docker images -q $IMG_NAME_PG_EXPORTER 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PG_EXPORTER" ]; then
-                        echo -n "   Cargando imagen de réplica ($IMG_NAME_PG_EXPORTER)..."
-                        sudo docker load -i "$IMAGE_PATH_PG_EXPORTER" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PG_EXPORTER"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PG_EXPORTER ya se encuentra en el host."
-                fi
+                  # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_postgres_and_exporter
 
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
                 log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
@@ -823,18 +681,9 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then
                 log_success "Punto de montaje detectado para pgagent..."
                 
-                if [[ -z "$(sudo images -q $IMG_NAME_PGAGENT 2> /dev/null)" ]]; then
-                    if [ -f "$IMAGE_PATH_PGAGENT" ]; then 
-                        echo -n "   Cargando imagen de pgagent ($IMG_NAME_PGAGENT)..."
-                        sudo docker load -i "$IMAGE_PATH_PGAGENT" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivo no localizado en la ruta: $IMAGE_PATH_PGAGENT"
-                        exit 1
-                    fi
-                else 
-                    log_success "La imagen $IMG_NAME_PGAGENT ya existe en el host."
-                fi 
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_pgagent
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
@@ -863,18 +712,10 @@ while true; do
             if [ -d "$MOUNT_KAFKA" ]; then
                 log_success "Punto de montaje de Kafka verificado."
                 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_KAFKA 2> /dev/null)" ]]; then 
-                    if [ -f "$IMAGE_PATH_KAFKA" ]; then 
-                        echo -n "   Cargando imagen distribuida ($IMG_NAME_KAFKA)..."
-                        sudo docker load -i "$IMAGE_PATH_KAFKA" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Paquete Kafka ausente en la ruta: $IMAGE_PATH_KAFKA"
-                        exit 1
-                    fi
-                else 
-                    log_success "Imagen de Kafka ya sincronizada."
-                fi 
+                  # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_kafkita
+
 
                 if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
@@ -927,7 +768,7 @@ while true; do
                 sudo chown -R 1000:1000 "$MOUNT_KAFKA"
                 log_success "Políticas aplicadas con éxito."
 
-                log_info "EL DESPLIEGUE DE KAFKA ESTÁ RESERVADO POR EL ORQUESTADOR CENTRAL"
+                log_info "EL DESPLIEGUE DE KAFKA ESTA RESERVADO POR EL ORQUESTADOR CENTRAL"
                 
             else 
                 log_error "Punto de montaje de Kafka ausente. Abortando flujo."
@@ -945,78 +786,44 @@ while true; do
 
             if [ -d "$MOUNT_APP_SERV" ]; then 
                 log_success "Punto de montaje verificado para servicios SIMF."
+
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_simf
+             
+                log_info "Comprobando red interna compartida (nginx_lbnet)..."
+                if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
+                    log_success "Estructura de red compartida activa."
+                else
+                    log_warning "Red ausente. Construyendo topología overlay..."
+                    sudo docker network create --driver overlay nginx_lbnet > /dev/null
+                    log_success "Red superpuesta distribuida acoplada."
+                fi  
                 
-                if [[ -z "$(sudo docker images -q $IMG_NAME_SIMF_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SIMF_MS 2> /dev/null)" ]]; then 
-                    log_warning "Detectada falta de imágenes del Core. Extrayendo archivos..."
-
-                    if [ -f "$IMAGE_PATH_SIMF_REST" ] && [ -f "$IMAGE_PATH_SIMF_MS" ]; then
-                        echo -n "   Desempaquetando Micro-API..."
-                        sudo docker load -i "$IMAGE_PATH_SIMF_REST" > /dev/null 2>&1 &
-                        spinner $!
-
-                        echo -n "   Desempaquetando Workers/MS..."
-                        sudo docker load -i "$IMAGE_PATH_SIMF_MS" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Archivos .tar corruptos o no encontrados en las rutas especificadas."            
-                        exit 1
-                    fi
-
-                    log_info "Comprobando red interna compartida (nginx_lbnet)..."
-                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                        log_success "Estructura de red compartida activa."
-                    else
-                        log_warning "Red ausente. Construyendo topología overlay..."
-                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                        log_success "Red superpuesta distribuida acoplada."
-                    fi  
-                else 
-                    log_success "Servicios ya sincronizados en el host de réplica."
-                fi 
-
-                
-            # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                log_info "Escaneando imagenes..."
-                if [[ -z "$(sudo docker images -q $IMG_NAME_SGLPAR_REST 2> /dev/null)" || -z "$(sudo docker images -q $IMG_NAME_SGLPAR_MS 2> /dev/null)" ]]; then 
-                    log_warning "Imágenes parciales o ausentes. Iniciando carga masiva..."
-
-                    if [ -f "$IMAGE_PATH_SGLPAR_REST" ] && [ -f "$IMAGE_PATH_SGLPAR_MS" ]; then
-                        echo -n "   Cargando paquete REST API ($IMG_NAME_SGLPAR_REST)..."
-                        sudo docker load -i "$IMAGE_PATH_SGLPAR_REST" > /dev/null 2>&1 &
-                        spinner $!
-
-                        echo -n "   Cargando paquete Microservicios ($IMG_NAME_SGLPAR_MS)..."
-                        sudo docker load -i "$IMAGE_PATH_SGLPAR_MS" > /dev/null 2>&1 &
-                        spinner $!
-                    else 
-                        log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
-                        exit 1
-                    fi
-
-                    log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
-                    if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                        log_success "Red balanceadora 'nginx_lbnet' existente."
-                    else
-                        log_warning "Red perimetral ausente. Creando red del balanceador..."
-                        sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                        log_success "Segmentación perimetral configurada."
-                    fi  
-                else 
-                    log_success "Las imagenes del ecosistema SGLPAR ya están sincronizadas."
-                fi 
-
-                echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-                echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE RÉPLICA COMPLETADO CON ÉXITO        ${COLOR_RESET}"
-                echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-
-                 # --- OBSERVABILIDAD Y MÉTRICAS ---
-                clear
+                # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                echo -e "${DEEP_BLUE}${BOLD}  FASE 5: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+                echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+              
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_sglpar
+
+            else 
+                log_success "No se pudo localizar el punto de montaje $MOUNT_APP_SERV"
+                exit 1
+            fi
+
+            echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE RÉPLICA COMPLETADO CON ÉXITO        ${COLOR_RESET}"
+            echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
+
+        
+            # --- OBSERVABILIDAD Y MÉTRICAS ---
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  FASE 5: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 
                 log_info "Buscando scripts del recolector de métricas..."
                 if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
@@ -1040,7 +847,7 @@ while true; do
             ;;
             
         3)
-            echo -e "\n${CRIMSON_RED}➔ Finalizando el instalador y cerrando conexiones del asistente de clúster. ¡Adios!${COLOR_RESET}"
+            echo -e "\n${CRIMSON_RED}➔ Finalizando el instalador y cerrando conexiones del asistente de clúster. ¡Adios papu!${COLOR_RESET}"
             exit 0 
             ;;
             

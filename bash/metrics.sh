@@ -66,26 +66,18 @@ if [ -d "$MOUNT_METRICS" ]; then
     log_success "Punto de montaje localizado con éxito en: $MOUNT_METRICS"
     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
             
-    log_info "Sincronizando registro local de imágenes en Docker Engine..."
+    log_info "Sincronizando registro local de imagenes en Docker Engine..."
     
 # --------------------------------------------------------------------------
 # GESTIÓN INDEPENDIENTE: GRAFANA ALLOY
 # --------------------------------------------------------------------------
-  if [[ -z "$(sudo docker images -q "$IMG_NAME_ALLOY" 2>/dev/null)" ]]; then
-    log_warning "Grafana Alloy ausente en el host. Verificando distribución..."
-    
-    if [ -f "$IMAGE_PATH_ALLOY" ]; then
-        echo -n "   Cargando Grafana Alloy ($IMG_NAME_ALLOY)..."
-        sudo docker load -i "$IMAGE_PATH_ALLOY" > /dev/null 2>&1 &
-        spinner $!
-    else
-        log_error "Archivo crítico ausente: $IMAGE_PATH_ALLOY"
-        exit 1
-    fi
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_metrics
 
     ALLOY_PATH="${MOUNT_METRICS}/alloy_data"
 
-    # Depuración previa si el directorio destino existe
+    # Depuracion previa si el directorio destino existe
     if [ -d "$ALLOY_PATH" ]; then 
         log_info "Repo de alloy_data detectado. Depurando respaldos viejos..."
         sudo rm -rf "$ALLOY_PATH"
@@ -93,7 +85,7 @@ if [ -d "$MOUNT_METRICS" ]; then
         log_info "Repo alloy_data no detectado. Creando directorio..."
     fi
 
-    # Creación y permisos unificados
+    # Creacion y permisos unificados
     sudo mkdir -p "$ALLOY_PATH"
     log_info "Asignando permisos al repo en $ALLOY_PATH"
     
@@ -103,28 +95,16 @@ if [ -d "$MOUNT_METRICS" ]; then
 
     log_success "Repo alloy_data preparado correctamente."
 
-  else
-    log_success "Grafana Alloy ya se encuentra en el caché del sistema."
-  fi
-
     # --------------------------------------------------------------------------
     # GESTIÓN INDEPENDIENTE: SERVICE DISCOVERY API
     # --------------------------------------------------------------------------
-    if [[ -z "$(sudo docker images -q "$IMG_NAME_DISCOVERY" 2>/dev/null)" ]]; then
-        log_warning "Service Discovery API ausente en el host. Verificando distribución..."
-        if [ -f "$IMAGE_PATH_DISCOVERY" ]; then
-            echo -n "   Cargando Service Discovery API ($IMG_NAME_DISCOVERY)..."
-            sudo docker load -i "$IMAGE_PATH_DISCOVERY" > /dev/null 2>&1 &
-            spinner $!
-        else
-            log_error "Archivo crítico ausente: $IMAGE_PATH_DISCOVERY"
-            exit 1
-        fi
-    else
-        log_success "Service Discovery API ya se encuentra en el caché del sistema."
-    fi
+   
+    # Invocacando la configuracion del binario
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+    sudo bash binary_verification.sh binaries_metrics
 
-    # --- BANNER DE CIERRE PROFESIONAL ---
+
+    # --- BANNER DE CIERRE ---
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}  PROCESO DE PREPARACIÓN DE TELEMETRÍA FINALIZADO                 ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
