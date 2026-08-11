@@ -26,12 +26,6 @@ press_to_continue() {
 # ==============================================================================
 MOUNT_METRICS="/metrics/"
 
-IMAGE_PATH_ALLOY="/metrics/alloy/alloy.tar"
-IMAGE_PATH_DISCOVERY="/metrics/service_discovery/serve-discovery.tar" 
-
-
-IMG_NAME_ALLOY="grafana/alloy:v1.16.1"
-IMG_NAME_DISCOVERY="discovery-api:latest"
 
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)

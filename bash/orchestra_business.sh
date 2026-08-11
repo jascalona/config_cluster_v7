@@ -57,6 +57,12 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: POSTGRESQL REPLICA                     ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
+            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_postgres_and_exporter
+
+
             if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
                 log_info "Desplegando topología en Swarm..."
                 sudo docker stack deploy -c /app_psql/packague_bd/stack/replica-stack.yml pg_replica
@@ -92,6 +98,13 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: PGAGENT                               ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
+
+            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_pgagent
+
+
             if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
                 log_info "Desplegando servicio en Swarm..."
                 sudo docker stack deploy -c /app_psql/pgagent/pgagent-stack.yml pgagent
@@ -117,6 +130,12 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: DISTRIBUTED KAFKA CLUSTER              ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
+            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_kafkita
+
+
             if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
                 log_info "Desplegando topología en Swarm..."
                 sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka
@@ -141,6 +160,13 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: MICROSERVICIOS CORE (SIMF)            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
+
+                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_simf
+
+
             if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
                 log_info "Desplegando topología en Swarm..."
                 sudo docker stack deploy -c /app_services/app_simf/stack-simf.yml simf
@@ -166,6 +192,13 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: SGLPAR                                ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
+
+                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_sglpar
+
+
             if [ -f "/app_services/app_sglpar/stack-sglpar.yml" ]; then 
                 log_info "Desplegando servicio en Swarm..."
                 sudo docker stack deploy -c /app_services/app_sglpar/stack-sglpar.yml sglpar
@@ -189,7 +222,13 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA NEGOCIO                      ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            
+
+
+            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_postgres_and_exporter
+
             # --- STEP 1: DATABASE REPLICA ---
             log_info "[Paso 1/5] Lanzando Base de Datos Réplica..."
             if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
@@ -206,6 +245,13 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
             
+
+            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_pgagent
+
+
             # --- STEP 2: PGAGENT BROKERS ---
             log_info "[Paso 2/5] Lanzando Clúster Distribuido de pgagent..."        
             if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
@@ -220,6 +266,12 @@ while true; do
             echo -e "\n${BOLD} Verificación de salud (PGAGENT):${COLOR_RESET}"
             sudo docker stack ps pgagent --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_kafkita
+
 
 
             # --- STEP 3: KAFKA BROKERS ---
@@ -237,6 +289,12 @@ while true; do
             sudo docker stack ps kafka --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
+                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_simf
+
+
             # --- STEP 4: CORE MICROSERVICES ---
             log_info "[Paso 4/5] Lanzando Ecosistema de Microservicios (SIMF)..."
             if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
@@ -250,6 +308,13 @@ while true; do
             countdown 30 "Esperando el levantamiento y self-healing de las API Rest y Workers"
             echo -e "\n${BOLD} Verificación de salud (SIMF Microservices):${COLOR_RESET}"
             sudo docker stack ps simf --no-trunc | head -n 4
+
+
+
+                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
+                # Invocacando la configuracion del binario
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+                sudo bash binary_verification.sh binaries_sglpar
 
 
             # --- STEP 5: CORE MICROSERVICES ---
@@ -287,6 +352,11 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL OBSERVABILIDAD            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"  
             
+            
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_metrics
+
             # --- STEP 1: Service discovery
             log_info "[Paso 1/7] Lanzando Service Discovery"
             if [ -f "/metrics/service_discovery/discovery-stack.yml" ]; then
@@ -300,6 +370,12 @@ while true; do
             echo -e "\n${BOLD} Verificando estado del discovery:${COLOR_RESET}"
             sudo docker stack ps discovery --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
+                        
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_prometheus
+
 
             # --- STEP 2: Prometheus
             log_info "[Paso 2/7] Lanzando Prometheus"
@@ -331,6 +407,11 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
 
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_loki
+
+
             # --- STEP 4: loki
             log_info "[Paso 4/7] Lanzando loki/minio"
             if [ -f "/core/loki/stacks/stack-loki.yml" ]; then
@@ -352,6 +433,13 @@ while true; do
             sudo docker stack ps loki --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
+
+                
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_alertmanager
+
+
             # --- STEP 5: alertmanager
             log_info "[Paso 5/7] Lanzando alertmanager"
             if [ -f "/metrics/alertmanager/stacks/stack-alarm-manager.yml" ]; then
@@ -366,6 +454,9 @@ while true; do
             sudo docker stack ps alertmanager --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_grafana
 
             # --- STEP 6: alertmanager
             log_info "[Paso 6/7] Lanzando Grafana"
@@ -381,6 +472,11 @@ while true; do
             sudo docker stack ps grafana --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
+
+
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_pool_exporter
 
             # --- STEP 7: pool-exporter
             log_info "[Paso 7/7] Lanzando pool-exporter"
@@ -411,9 +507,13 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA EL BALANCEADOR               ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-            
+   
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_argus
+
             # --- STEP 1: ARGUS
-            log_info "[Paso 1/3] Lanzando Pgpool"
+            log_info "[Paso 1/3] Lanzando Argus"
             if [ -f "/balancer/nginx/simf/argus/stack-argus.yml" ]; then
                 sudo docker stack deploy -c /balancer/nginx/simf/argus/stack-argus.yml argus > /dev/null
                 log_success "Instrucción de despliegue de Argus enviada a la API de Swarm"
@@ -426,6 +526,12 @@ while true; do
             sudo docker stack ps argus --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"            
             
+   
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_nginx
+
+
             # --- STEP 2: NGINX
             log_info "[Paso 2/3] Lanzando Nginx"
             if [ -f "/balancer/nginx/simf/nginx-optimized.conf" ]; then
@@ -439,6 +545,11 @@ while true; do
             echo -e "\n${BOLD} Verificando estado de Nginx:${COLOR_RESET}"
             sudo docker stack ps nginx --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+   
+            # Invocacando la configuracion del binario
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
+            sudo bash binary_verification.sh binaries_pool
+
 
             # --- STEP 3: POOL
             log_info "[Paso 3/3] Lanzando Pgpool"
