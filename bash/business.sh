@@ -117,7 +117,7 @@ EOF
 
     echo "Reiniciando el servicio de Docker para aplicar cambios..."
     sudo systemctl restart docker
-    echo -e "${NEON_GREEN} Archivo $DAEMON_JSON actualizado e integrado con éxito."
+    echo  "${NEON_GREEN} Archivo $DAEMON_JSON actualizado e integrado con éxito."
 fi
 
 
@@ -235,8 +235,8 @@ while true; do
     
     read -p "Seleccione una opción (1-3): " opcion
 
-    case $opcion in 
-        1) 
+case $opcion in 
+      1) 
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  FASE 1: ESCANEO Y VERIFICACIÓN DEL SERVIDOR PRINCIPAL           ${COLOR_RESET}"
@@ -245,17 +245,15 @@ while true; do
             log_info "Verificando puntos de montaje para PostgreSQL Swarm..."
             if [ -d "$MOUNT_APP_PSQ" ]; then 
                 log_success "Punto de montaje detectado en: $MOUNT_APP_PSQ"
-                
 
-                # Invocacando la configuracion del binario
+                # Invocando la configuración del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_postgres_and_exporter
-
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
                 log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
-                # Definicion de los puntos
+                
                 TARGET_TBLSPC=(
                     "$MOUNT_TBLSPC_HISTO"
                     "$MOUNT_TBLSPC_TRAN"
@@ -267,15 +265,47 @@ while true; do
 
                 for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
                     if [ ! -d "$mount_tblspc" ]; then
-                    log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
-                    exit 1
-                fi 
+                        log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
+                        exit 1
+                    fi 
                 done         
 
                 log_success "Puntos de montaje detectados para los tblspc "
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
                 log_success "TBPLSCP CREADOS CON EXITO"
 
+                # CUSTOMIZACIÓN DE RECURSOS ASIGNADOS
+                log_info "AJUSTE DE RECURSOS ASIGNADOS (CONFIGURACION DE BD-SIMF PRIMARY)"
+                if [ -f "/app_psql/packague_bd/stack/primary-stack.yml" ]; then 
+                    log_info "APERTURANDO STACK DE BD-SIMF (PRIMARY)"
+                    OPEN_EDITOR=true
+
+                    while true; do 
+                        if [ "$OPEN_EDITOR" = true ]; then
+                            sudo nano "/app_psql/packague_bd/stack/primary-stack.yml" 
+                        fi 
+
+                        echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
+                        read -r respuesta
+
+                        case "$respuesta" in
+                            [Yy]*)
+                                log_info "Edición completada por el usuario. Continuando flujo de configuración..."
+                                break
+                                ;;
+                            [Nn]*)
+                                log_info "Aperturando stack nuevamente..."
+                                OPEN_EDITOR=true
+                                ;;
+                            *)
+                                log_error "\nEpale papu, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                                OPEN_EDITOR=false
+                                ;;
+                        esac
+                    done
+                else 
+                    log_error "[ERROR]: No fue localizado el stack en la ruta especificada"
+                fi 
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_POSTGRES)..."
@@ -303,60 +333,56 @@ while true; do
                     log_success "Red superpuesta distribuida creada correctamente."
                 fi  
 
-                log_info "Injeccion de etiquetas (Labels) en nodos del Swarm..."
+                log_info "Infección de etiquetas (Labels) en nodos del Swarm..."
                 sudo docker node update --label-add pg_role=primary "$BUSINESS_01" > /dev/null
                 sudo docker node update --label-add pg_role=replica "$BUSINESS_02" > /dev/null
                 sudo docker node update --label-add pg_role=replica "$BUSINESS_03" > /dev/null
                 log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
 
+                while true; do 
+                    echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF:${COLOR_RESET}"
+                    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
+                    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
+                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
+                    echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+                    
+                    read -p "Seleccione el tipo de Infraestructura (1-3): " environment
+                    echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+                    
+                    SRC_FILE=""
+                    INFRA_NAME=""
 
-            while true; do 
-            echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF:${COLOR_RESET}"
-            echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
-            echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
-            echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
-            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
-            
-            read -p "Seleccione el tipo de Infraestructura (1-3): " environment
-            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
-            
-            # Inicializamos variables vacías que se llenarán según el environment
-            SRC_FILE=""
-            INFRA_NAME=""
+                    case $environment in 
+                        1)
+                            SRC_FILE="postgresql_para24GB.conf"
+                            INFRA_NAME="Básica (24GB)"
+                            break
+                            ;;
+                        2)
+                            SRC_FILE="postgresql_para32GB.conf"
+                            INFRA_NAME="Mediana (32GB)"
+                            break
+                            ;;
+                        3)
+                            SRC_FILE="postgresql_para512GB.conf"
+                            INFRA_NAME="Extendida (512GB)"
+                            break
+                            ;;
+                        *)
+                            log_error "'$environment' no coincide con ninguna opción disponible.\n"
+                            ;;
+                    esac
+                done 
 
-            case $environment in 
-                1)
-                    SRC_FILE="postgresql_para24GB.conf"
-                    INFRA_NAME="Básica (24GB)"
-                    break
-                    ;;
-                2)
-                    SRC_FILE="postgresql_para32GB.conf"
-                    INFRA_NAME="Mediana (32GB)"
-                    break
-                    ;;
-                3)
-                    SRC_FILE="postgresql_para512GB.conf"
-                    INFRA_NAME="Extendida (512GB)"
-                    break
-                    ;;
-                *)
-                    log_error "'$environment' no coincide con ninguna opción disponible.\n"
-                    ;;
-            esac
-        done
+                # ==================================================================
+                # (LÓGICA CENTRALIZADA)
+                # ==================================================================
+                log_info "Has seleccionado una Infraestructura ${INFRA_NAME}"
+                log_info "Renombrando el fichero de configuración..."
 
-        # ==================================================================
-        # (LÓGICA CENTRALIZADA)
-        # ==================================================================
-        log_info "Has seleccionado una Infraestructura ${INFRA_NAME}"
-        log_info "Renombrando el fichero de configuración..."
-
-        # Esto renombra el archivo dentro de la misma ruta '/app_psql/packague_bd/creacion-bd'
-        sudo mv "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
-
-        log_info "¡Fichero renombrado correctamente a ${NAME_POSTGRES_CONF}!"
-            
+                sudo mv "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
+                log_info "¡Fichero renombrado correctamente a ${NAME_POSTGRES_CONF}!"
+                    
                 # --- DESPLIEGUE BD ---
                 log_info "Lanzando stack de base de datos..."
                 if [ -f "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" ]; then 
@@ -381,7 +407,7 @@ while true; do
                 exit 1
             fi
 
-            #  PAUSA 1: Finalización de la Base de Datos antes de Kafka
+            # PAUSA 1
             press_to_continue
 
             # ---- CONFIGURACION DE PGAGENT ---
@@ -394,23 +420,18 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then
                 log_success "Punto de montaje detectado para pgagent..."
                 
-               
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_pgagent
 
-
-                # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
                 if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
                     log_success "Secret existente en el clúster. Omitiendo creación."
                 else 
                     log_warning "Secret no detectado. Iniciando inyección..."
-                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf'| sudo docker secret create pgagent_pass -
+                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf' | sudo docker secret create pgagent_pass -
                     sudo docker secret inspect "$NAME_PGAGENT" > /dev/null
                     log_success "Secret creado exitosamente."
                 fi
-
 
                 log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
                 sudo docker node update --label-add pgagent=pgagent "$BUSINESS_01" > /dev/null
@@ -419,32 +440,11 @@ while true; do
                 log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
 
             else 
-                log_error "El punto de montaje no fue localizado para este componente"  log_info "Ejecutando aprovisionamiento de tablespaces..."
-                log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
-                # Definicion de los puntos
-                TARGET_TBLSPC=(
-                    "$MOUNT_TBLSPC_HISTO"
-                    "$MOUNT_TBLSPC_TRAN"
-                    "$MOUNT_TBLSPC_VIS"
-                    "$MOUNT_BACKUP"
-                    "$MOUNT_LOGS"
-                    "$MOUNT_OVERLAY"
-                )
-
-                for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
-                    if [ ! -d "$mount_tblspc" ]; then
-                    log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
-                    exit 1
-                fi 
-                done         
-
-                log_success "Puntos de montaje detectados para los tblspc "
-                sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
-                log_success "TBPLSCP CREADOS CON EXITO"
+                log_error "El punto de montaje no fue localizado para este componente"
             fi 
-            #  PAUSA PGAGENT
+            
+            # PAUSA PGAGENT
             press_to_continue
-
 
             # --- CONFIGURACION DE KAFKA ---
             clear
@@ -456,48 +456,39 @@ while true; do
             if [ -d "$MOUNT_KAFKA" ]; then
                 log_success "Punto de montaje detectado en: $MOUNT_KAFKA"
                 
-               
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_kafkita
 
-                
-                echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
                
-              if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
+                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
-                    
-                    # Variable de control para manejar la apertura del archivo
                     ABRIR_EDITOR=true
 
                     while true; do
-                        # Solo abre nano si la bandera está en true
                         if [ "$ABRIR_EDITOR" = true ]; then
                             sudo nano "/kafka/kafka/stack/kafka.yml"
                         fi
 
-                        # Preguntar si fueron finalizados los cambios
                         echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
                         read -r respuesta
 
-                        # Evaluacion de la respuesta 
                         case "$respuesta" in
-                            [Yy]* | "")
-                                log_info "Edición completada por el usuario. Continuando el flujo de configuración..."
+                            [Yy]*)
+                                log_info "Edición completada por el usuario. Continuando el flujo..."
                                 break
                                 ;;
                             [Nn]*)
                                 log_info "Aperturando nuevamente el fichero..."
-                                ABRIR_EDITOR=true  # Forzamos a que reabra en la siguiente iteración
+                                ABRIR_EDITOR=true
                                 ;;
                             *)
                                 echo -e "\nEpale papa, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
-                                ABRIR_EDITOR=false # Evita que abra nano, solo repetirá la pregunta
+                                ABRIR_EDITOR=false
                                 ;;
                         esac
                     done
-
                 else 
                     log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
                 fi
@@ -530,10 +521,10 @@ while true; do
                 exit 1
             fi
 
-            #  PAUSA 2: Finalización de Kafka antes de Servicios SIMF
+            # PAUSA 2
             press_to_continue
 
-            # --- CONFIGURACIÓN DE SERVICIOS SIMF ---
+            # --- CONFIGURACIÓN DE SERVICIOS SIMF Y SGLPAR ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  FASE 4: CONFIGURACION DE MS (SIMF)                              ${COLOR_RESET}"
@@ -543,12 +534,9 @@ while true; do
             if [ -d "$MOUNT_APP_SERV" ]; then 
                 log_success "Punto de montaje detectado en: $MOUNT_APP_SERV"
                 
- 
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_simf
 
-                # REDIRECCIONAR CONFIGURACION DE RED
                 log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
                 if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
                     log_success "Red balanceadora 'nginx_lbnet' existente."
@@ -557,23 +545,15 @@ while true; do
                     sudo docker network create --driver overlay nginx_lbnet > /dev/null
                     log_success "Segmentación perimetral configurada."
                 fi  
-        
 
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+                echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
+                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-            # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                
-
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_sglpar
                 
-              
-                # REDIRECCIONAR CONFIGURACION DE RED
                 echo "ESCANEANDO REDES NGINX"
-
                 log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
                 if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
                     log_success "Red balanceadora 'nginx_lbnet' existente."
@@ -582,7 +562,6 @@ while true; do
                     sudo docker network create --driver overlay nginx_lbnet > /dev/null
                     log_success "Segmentación perimetral configurada."
                 fi  
-
 
                 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NODO PRINCIPAL COMPLETADO            ${COLOR_RESET}"
@@ -593,9 +572,9 @@ while true; do
             else 
                 log_error "Montaje crítico no encontrado: $MOUNT_APP_SERV"
                 exit 1
-            fi
+            fi 
 
-            # PAUSA 3: Finalización del despliegue completo de aplicaciones antes de Observabilidad
+            # PAUSA 3
             press_to_continue
 
             # --- OBSERVABILIDAD Y MÉTRICAS ---
@@ -617,16 +596,13 @@ while true; do
             log_success "LISTANDO IMAGENES"
             sudo docker image ls
 
-
-            echo "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             log_success "VALIDACION DE BD"
             
             log_info "VERIFICANDO EL ESTADO DE LA BD"
             PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
-
-            break
             ;;
-            
+
         2)
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
@@ -637,13 +613,12 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then 
                 log_success "Punto de montaje localizado en: $MOUNT_APP_PSQ"
                 
-                  # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_postgres_and_exporter
 
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
                 log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
-                # Definicion de los puntos
+
                 TARGET_TBLSPC=(
                     "$MOUNT_TBLSPC_HISTO"
                     "$MOUNT_TBLSPC_TRAN"
@@ -655,9 +630,9 @@ while true; do
 
                 for mount_tblspc in "${TARGET_TBLSPC[@]}"; do 
                     if [ ! -d "$mount_tblspc" ]; then
-                    log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
-                    exit 1
-                fi 
+                        log_error "[ERROR]: No se encontro el punto de montaje $mount_tblspc"
+                        exit 1
+                    fi 
                 done         
 
                 log_success "Puntos de montaje detectados para los tblspc "
@@ -668,7 +643,7 @@ while true; do
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
             fi
 
-            #  PAUSA REPLICA 1
+            # PAUSA REPLICA 1
             press_to_continue
 
             # ---- CONFIGURACION DE PGAGENT ---
@@ -681,11 +656,9 @@ while true; do
             if [ -d "$MOUNT_APP_PSQ" ]; then
                 log_success "Punto de montaje detectado para pgagent..."
                 
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_pgagent
 
-                # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
                 if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
                     log_success "Secret existente en el clúster. Omitiendo creación."
@@ -699,9 +672,9 @@ while true; do
             else 
                 log_error "El punto de montaje no fue localizado para este componente"
             fi 
-            #  PAUSA PGAGENT
-            press_to_continue
 
+            # PAUSA PGAGENT
+            press_to_continue
 
             # --- KAFKA RÉPLICA ---
             clear
@@ -712,28 +685,22 @@ while true; do
             if [ -d "$MOUNT_KAFKA" ]; then
                 log_success "Punto de montaje de Kafka verificado."
                 
-                  # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_kafkita
-
 
                 if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
                     
-                    # Variable de control para manejar la apertura del archivo
                     ABRIR_EDITOR=true
 
                     while true; do
-                        # Solo abre nano si la bandera está en true
                         if [ "$ABRIR_EDITOR" = true ]; then
                             sudo nano "/kafka/kafka/stack/kafka.yml"
                         fi
 
-                        # Preguntar si fueron finalizados los cambios
                         echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
                         read -r respuesta
 
-                        # Evaluacion de la respuesta 
                         case "$respuesta" in
                             [Yy]* | "")
                                 log_info "Edición completada por el usuario. Continuando el flujo de configuración..."
@@ -741,19 +708,17 @@ while true; do
                                 ;;
                             [Nn]*)
                                 log_info "Aperturando nuevamente el fichero..."
-                                ABRIR_EDITOR=true  # Forzamos a que reabra en la siguiente iteración
+                                ABRIR_EDITOR=true
                                 ;;
                             *)
                                 echo -e "\nEpale papa, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
-                                ABRIR_EDITOR=false # Evita que abra nano, solo repetirá la pregunta
+                                ABRIR_EDITOR=false
                                 ;;
                         esac
                     done
-
                 else 
                     log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
                 fi
-
 
                 log_info "Preparando partición física y metadatos..."
                 if [ -d "$DATA_DIR" ]; then 
@@ -769,7 +734,6 @@ while true; do
                 log_success "Políticas aplicadas con éxito."
 
                 log_info "EL DESPLIEGUE DE KAFKA ESTA RESERVADO POR EL ORQUESTADOR CENTRAL"
-                
             else 
                 log_error "Punto de montaje de Kafka ausente. Abortando flujo."
                 exit 1
@@ -787,7 +751,6 @@ while true; do
             if [ -d "$MOUNT_APP_SERV" ]; then 
                 log_success "Punto de montaje verificado para servicios SIMF."
 
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_simf
              
@@ -805,12 +768,10 @@ while true; do
                 echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
               
-                # Invocacando la configuracion del binario
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
                 sudo bash binary_verification.sh binaries_sglpar
-
             else 
-                log_success "No se pudo localizar el punto de montaje $MOUNT_APP_SERV"
+                log_error "No se pudo localizar el punto de montaje $MOUNT_APP_SERV"
                 exit 1
             fi
 
@@ -818,39 +779,31 @@ while true; do
             echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DE RÉPLICA COMPLETADO CON ÉXITO        ${COLOR_RESET}"
             echo -e "${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
 
-        
             # --- OBSERVABILIDAD Y MÉTRICAS ---
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  FASE 5: INICIALIZACION DEL ENTORNO DE OBSERVABILIDAD            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 
-                log_info "Buscando scripts del recolector de métricas..."
-                if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
-                    log_info "Invocando la configuración de observabilidad..."
-                    sudo bash /opt/Install_v7/bash/metrics.sh
-                    log_success "Ecosistema de observabilidad en línea."
-                else
-                    log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
-                fi
-
-                echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-                log_success "LISTANDO IMAGENES"
-                sudo docker image ls
-
-            else 
-                log_error "Error del sistema de archivos en: $MOUNT_APP_SERV"
-                exit 1
+            log_info "Buscando scripts del recolector de métricas..."
+            if [ -f "/opt/Install_v7/bash/metrics.sh" ]; then
+                log_info "Invocando la configuración de observabilidad..."
+                sudo bash /opt/Install_v7/bash/metrics.sh
+                log_success "Ecosistema de observabilidad en línea."
+            else
+                log_warning "Módulo de métricas omitido: /opt/Install_v7/bash/metrics.sh no existe."
             fi
 
-            break
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "LISTANDO IMAGENES"
+            sudo docker image ls
             ;;
-            
+
         3)
             echo -e "\n${CRIMSON_RED}➔ Finalizando el instalador y cerrando conexiones del asistente de clúster. ¡Adios papu!${COLOR_RESET}"
             exit 0 
             ;;
-            
+
         *) 
             log_error "'$opcion' no coincide con ninguna opción disponible en el menú de clúster.\n"
             ;;

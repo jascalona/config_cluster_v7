@@ -219,6 +219,7 @@ binaries_postgres_and_exporter(){
     log_success "Binarios cargados con exito"
     log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep -E "$IMG_NAME_PG_P|$IMG_NAME_PG_R|$IMG_NAME_PG_EXPORTER"
+
 }
 
 binaries_pgagent(){
