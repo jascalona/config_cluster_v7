@@ -353,17 +353,21 @@ case $opcion in
                     INFRA_NAME=""
 
                     case $environment in 
-                        1)
+                        1) SRC_ORIGINAL="postgresql.conf"
+                            INFRA_NAME="Fichero Oginal de postgres" # a peticion del Sr. Manuel
+                            break
+                            ;;
+                        2)
                             SRC_FILE="postgresql_para24GB.conf"
                             INFRA_NAME="Básica (24GB)"
                             break
                             ;;
-                        2)
+                        3)
                             SRC_FILE="postgresql_para32GB.conf"
                             INFRA_NAME="Mediana (32GB)"
                             break
                             ;;
-                        3)
+                        4)
                             SRC_FILE="postgresql_para512GB.conf"
                             INFRA_NAME="Extendida (512GB)"
                             break
