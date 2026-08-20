@@ -162,6 +162,24 @@ IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
 IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
 
 
+# ==============================================================================
+# INTERFAZ DE CARGA (SPINNER)
+# ==============================================================================
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    tput civis  
+    while [ "$(ps -p $pid -o pid=)" ]; do
+        local temp=${spinstr#?}
+        printf "\r ${DEEP_BLUE}[%c]${COLOR_RESET}  Procesando, por favor espere..." "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+    done
+    tput cnorm 
+    printf "\r\e[K ${NEON_GREEN}[OK]${COLOR_RESET}  Procesado con éxito.\n"
+}
+
 
 binaries_postgres_and_exporter(){
 
