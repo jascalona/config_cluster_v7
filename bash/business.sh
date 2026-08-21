@@ -26,9 +26,9 @@ press_to_continue() {
 # ==============================================================================
 # VARIABLES DE ENTORNO
 # ==============================================================================
-BUSINESS_01="negocio01"
-BUSINESS_02="negocio02"
-BUSINESS_03="negocio03"
+BUSINESS_01="vasldiccs060"
+BUSINESS_02="vasldiccs061"
+BUSINESS_03="vasldiccs062"
 
 
 ROUTE_CREATION_BD="/app_psql/packague_bd/creacion-bd"
@@ -61,6 +61,9 @@ NAME_POSTGRES="postgre_password"
 NAME_PGAGENT="pgagent_pass"
 
 DAEMON_JSON="/etc/docker/daemon.json"
+
+STARTING_POINT="/opt/Install_v7/bash"
+
 
 
 # ==============================================================================
@@ -247,8 +250,8 @@ case $opcion in
                 log_success "Punto de montaje detectado en: $MOUNT_APP_PSQ"
 
                 # Invocando la configuración del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_postgres_and_exporter
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_postgres_and_exporter
 
                 # --- CONFIGURACIÓN E INYECCIÓN ---
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
@@ -298,7 +301,7 @@ case $opcion in
                                 OPEN_EDITOR=true
                                 ;;
                             *)
-                                log_error "\nEpale papu, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                                log_error "\Lo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
                                 OPEN_EDITOR=false
                                 ;;
                         esac
@@ -341,12 +344,13 @@ case $opcion in
 
                 while true; do 
                     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF:${COLOR_RESET}"
-                    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
-                    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
-                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
+                    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Postgres Original"
+                    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Básica (24GB)"
+                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Media (32GB)"
+                    echo -e "  ${DEEP_BLUE}4)${COLOR_RESET} Infraestructura Extendida (512GB)"
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
-                    read -p "Seleccione el tipo de Infraestructura (1-3): " environment
+                    read -p "Seleccione el tipo de Infraestructura (1-4): " environment
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
                     SRC_FILE=""
@@ -355,7 +359,8 @@ case $opcion in
                     case $environment in 
                         1) SRC_ORIGINAL="postgresql.conf"
                             INFRA_NAME="Fichero Oginal de postgres" # a peticion del Sr. Manuel
-                            break
+                            INFRA_ORIGINAL="PG_Original"
+			    break
                             ;;
                         2)
                             SRC_FILE="postgresql_para24GB.conf"
@@ -424,8 +429,8 @@ case $opcion in
             if [ -d "$MOUNT_APP_PSQ" ]; then
                 log_success "Punto de montaje detectado para pgagent..."
                 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_pgagent
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
 
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
                 if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
@@ -460,8 +465,8 @@ case $opcion in
             if [ -d "$MOUNT_KAFKA" ]; then
                 log_success "Punto de montaje detectado en: $MOUNT_KAFKA"
                 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_kafkita
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
 
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
@@ -488,7 +493,7 @@ case $opcion in
                                 ABRIR_EDITOR=true
                                 ;;
                             *)
-                                echo -e "\nEpale papa, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                                echo -e "\nLo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
                                 ABRIR_EDITOR=false
                                 ;;
                         esac
@@ -538,8 +543,8 @@ case $opcion in
             if [ -d "$MOUNT_APP_SERV" ]; then 
                 log_success "Punto de montaje detectado en: $MOUNT_APP_SERV"
                 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_simf
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
 
                 log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
                 if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
@@ -554,8 +559,8 @@ case $opcion in
                 echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_sglpar
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
                 
                 echo "ESCANEANDO REDES NGINX"
                 log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
@@ -605,6 +610,8 @@ case $opcion in
             
             log_info "VERIFICANDO EL ESTADO DE LA BD"
             PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
+            
+            break
             ;;
 
         2)
@@ -617,8 +624,8 @@ case $opcion in
             if [ -d "$MOUNT_APP_PSQ" ]; then 
                 log_success "Punto de montaje localizado en: $MOUNT_APP_PSQ"
                 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_postgres_and_exporter
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_postgres_and_exporter
 
                 log_info "Ejecutando aprovisionamiento de tablespaces..."
                 log_warning "VERIFICANDO LA EXISTENCIA DE LOS PUNTOS DE MONTAJE PARA LOS TBLSPC"
@@ -660,8 +667,8 @@ case $opcion in
             if [ -d "$MOUNT_APP_PSQ" ]; then
                 log_success "Punto de montaje detectado para pgagent..."
                 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_pgagent
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
 
                 log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
                 if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
@@ -689,8 +696,8 @@ case $opcion in
             if [ -d "$MOUNT_KAFKA" ]; then
                 log_success "Punto de montaje de Kafka verificado."
                 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_kafkita
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
 
                 if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
                     log_info "APERTURANDO STACK DE KAFKA"
@@ -715,7 +722,7 @@ case $opcion in
                                 ABRIR_EDITOR=true
                                 ;;
                             *)
-                                echo -e "\nEpale papa, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                                echo -e "\nLo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
                                 ABRIR_EDITOR=false
                                 ;;
                         esac
@@ -755,8 +762,8 @@ case $opcion in
             if [ -d "$MOUNT_APP_SERV" ]; then 
                 log_success "Punto de montaje verificado para servicios SIMF."
 
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_simf
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
              
                 log_info "Comprobando red interna compartida (nginx_lbnet)..."
                 if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
@@ -772,8 +779,8 @@ case $opcion in
                 echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
               
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_sglpar
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
             else 
                 log_error "No se pudo localizar el punto de montaje $MOUNT_APP_SERV"
                 exit 1
@@ -801,10 +808,11 @@ case $opcion in
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             log_success "LISTANDO IMAGENES"
             sudo docker image ls
+            break
             ;;
 
         3)
-            echo -e "\n${CRIMSON_RED}➔ Finalizando el instalador y cerrando conexiones del asistente de clúster. ¡Adios papu!${COLOR_RESET}"
+            echo -e "\n${CRIMSON_RED}➔ Finalizando el instalador y cerrando conexiones del asistente de clúster. ¡Cerrando la configuracion!${COLOR_RESET}"
             exit 0 
             ;;
 

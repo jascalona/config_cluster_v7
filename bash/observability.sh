@@ -40,25 +40,11 @@ MOUNT_IA="/storage_ia/"
 MOUNT_LOGS="/logs/"
 MOUNT_OVERLAY="/overlay/"
 
-# ruta de la imagen
-IMAGE_PATH_PROMETHEUS="/core/prometheus/images/prom-prometheus-v3.12.0.tar"
-IMAGE_PATH_ARGUS="/balancer/nginx/simf/argus/api/argus_api_v7_1_7_8.tar"
-IMAGE_PATH_MINIO="/core/loki/images/minio-sha14cea498d.tar"
-IMAGE_PATH_LOKI="/core/loki/images/grafana-loki-3.7.2.tar"
-IMAGE_PATH_GRAFANA="/metrics/grafana/images/grafana-sycomv7_v1_12_4_4.tar"
-IMAGE_PATH_ALERT="/metrics/alertmanager/alertmanager-sycomv7_v1_0_0.tar"
-IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
-IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
-# nombre imagen
-IMG_NAME_ARGUS="argus_api_v7_1_7_8"
-IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
-IMG_NAME_LOKI="grafana/loki:3.7.2"
-IMG_NAME_MINIO="minio/minio:latest"
-IMG_NAME_GRAFANA="grafana/grafana:12.4.4-ubuntu"
-IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
-IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
 
 DAEMON_JSON="/etc/docker/daemon.json"
+
+STARTING_POINT="/opt/Install_v7/bash"
+
 
 # ==============================================================================
 # INTERFAZ DE CARGA (SPINNER)
@@ -256,8 +242,10 @@ if [ -d "${MOUNT_CORE}prometheus" ]; then
 
     
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_prometheus
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_prometheus
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita_exporter
+
 
     # --- PERMISOS PROMETHEUS ---
     log_info "GESTION DEL REPO (DATA-PROMETHEUS)"
@@ -318,8 +306,8 @@ if [ -d ${MOUNT_CORE}loki ]; then
     log_info "Paqueteria detectada"
 
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_loki
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_loki
 
     # --- LOKI ---
     log_info "Ajustando el repo Data-loki"
@@ -370,8 +358,8 @@ if [ -d "${MOUNT_METRICS}grafana" ]; then
     log_success "Paqueteria detectada"
         
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_grafana
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_grafana
 
     # --- GRAFANA ---
     log_info "Aignando permisos al repo de grafana"
@@ -406,8 +394,8 @@ if [ -d "${MOUNT_METRICS}pool-exporter" ]; then
         
 
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_pool_exporter
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_pool_exporter
 
     # CONFIGURACION SECRET
 
@@ -461,8 +449,8 @@ if [ -d "${MOUNT_METRICS}alertmanager" ]; then
         
 
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_alertmanager
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_alertmanager
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
@@ -484,13 +472,13 @@ echo -e "\n${NEON_GREEN}${BOLD}=================================================
 echo -e "${NEON_GREEN}${BOLD}  FASE 7: PROCESO DE CONFIGURACIÓN DE ARGUS                         ${COLOR_RESET}"
 echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
-log "Verificando paqueteria"
+log_info "Verificando paqueteria"
 if [ -d "${MOUNT_BALANCER}nginx/simf/argus" ]; then
     log_success "Paqueteria detectada"
     
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_argus
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_argus
 
 
     log_info "IMPORTANTE: EL DESPLIEGUE DE ESTE COMPONENTE ESTA RESERVADO PARA EL ORQUESTADOR"

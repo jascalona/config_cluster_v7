@@ -25,6 +25,7 @@ press_to_continue() {
 # DEFINICIÓN DE VARIABLES (PUNTOS DE MONTAJE E IMÁGENES)
 # ==============================================================================
 MOUNT_METRICS="/metrics/"
+STARTING_POINT="/opt/Install_v7/bash"
 
 
 # ==============================================================================
@@ -66,8 +67,8 @@ if [ -d "$MOUNT_METRICS" ]; then
 # GESTIÓN INDEPENDIENTE: GRAFANA ALLOY
 # --------------------------------------------------------------------------
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_metrics
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_metrics
 
     ALLOY_PATH="${MOUNT_METRICS}/alloy_data"
 
@@ -94,8 +95,8 @@ if [ -d "$MOUNT_METRICS" ]; then
     # --------------------------------------------------------------------------
    
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_metrics
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_metrics
 
 
     # --- BANNER DE CIERRE ---

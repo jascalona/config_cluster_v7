@@ -28,6 +28,9 @@ countdown() {
     printf "\r ${NEON_GREEN}✔${COLOR_RESET} $msg... ¡Tiempo cumplido!     \n"
 }
 
+STARTING_POINT="/opt/Install_v7/bash"
+
+
 # ==============================================================================
 # FLUJO PRINCIPAL - ORQUESTADOR
 # ==============================================================================
@@ -59,8 +62,8 @@ while true; do
             
             log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_postgres_and_exporter
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_postgres_and_exporter
 
 
             if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
@@ -101,8 +104,8 @@ while true; do
 
             log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_pgagent
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
 
 
             if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
@@ -132,8 +135,8 @@ while true; do
             
             log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_kafkita
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
 
 
             if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
@@ -163,8 +166,8 @@ while true; do
 
                 log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
                 # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_simf
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
 
 
             if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
@@ -195,8 +198,8 @@ while true; do
 
                 log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
                 # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_sglpar
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
 
 
             if [ -f "/app_services/app_sglpar/stack-sglpar.yml" ]; then 
@@ -226,8 +229,8 @@ while true; do
 
             log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_postgres_and_exporter
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_postgres_and_exporter
 
             # --- STEP 1: DATABASE REPLICA ---
             log_info "[Paso 1/5] Lanzando Base de Datos Réplica..."
@@ -248,8 +251,8 @@ while true; do
 
             log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_pgagent
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
 
 
             # --- STEP 2: PGAGENT BROKERS ---
@@ -269,8 +272,8 @@ while true; do
 
             log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_kafkita
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
 
 
 
@@ -291,8 +294,8 @@ while true; do
 
                 log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
                 # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_simf
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
 
 
             # --- STEP 4: CORE MICROSERVICES ---
@@ -313,8 +316,8 @@ while true; do
 
                 log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
                 # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-                sudo bash binary_verification.sh binaries_sglpar
+                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+                sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
 
 
             # --- STEP 5: CORE MICROSERVICES ---
@@ -354,8 +357,8 @@ while true; do
             
             
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_metrics
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_metrics
 
             # --- STEP 1: Service discovery
             log_info "[Paso 1/7] Lanzando Service Discovery"
@@ -373,8 +376,8 @@ while true; do
 
                         
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_prometheus
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_prometheus
 
 
             # --- STEP 2: Prometheus
@@ -408,8 +411,8 @@ while true; do
 
 
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_loki
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_loki
 
 
             # --- STEP 4: loki
@@ -436,8 +439,8 @@ while true; do
 
                 
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_alertmanager
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_alertmanager
 
 
             # --- STEP 5: alertmanager
@@ -455,8 +458,8 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_grafana
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_grafana
 
             # --- STEP 6: alertmanager
             log_info "[Paso 6/7] Lanzando Grafana"
@@ -475,8 +478,8 @@ while true; do
 
 
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_pool_exporter
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_pool_exporter
 
             # --- STEP 7: pool-exporter
             log_info "[Paso 7/7] Lanzando pool-exporter"
@@ -509,8 +512,8 @@ while true; do
 
    
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_argus
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_argus
 
             # --- STEP 1: ARGUS
             log_info "[Paso 1/3] Lanzando Argus"
@@ -528,8 +531,8 @@ while true; do
             
    
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_nginx
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_nginx
 
 
             # --- STEP 2: NGINX
@@ -547,8 +550,8 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
    
             # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-            sudo bash binary_verification.sh binaries_pool
+            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+            sudo bash $STARTING_POINT/binary_verification.sh binaries_pool
 
 
             # --- STEP 3: POOL
@@ -588,7 +591,7 @@ while true; do
             ;;
 
         8)
-            echo -e "\n${CRIMSON_RED}➔ Desconectando del Gestor de Swarm. Saliendo del flujo de orquestación. ¡Adiós Papu!${COLOR_RESET}"
+            echo -e "\n${CRIMSON_RED}➔ Desconectando del Gestor de Swarm. Saliendo del flujo de orquestación. ¡Cerrando la configuracion!${COLOR_RESET}"
             exit 0
             ;;
         

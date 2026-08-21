@@ -42,7 +42,7 @@ IMAGE_PATH_SIMF_REST="/app_services/app_simf/image/simf_rest_api_0_2_2.tar"
 IMAGE_PATH_SIMF_MS="/app_services/app_simf/image/simf_ms_0_2_2.tar"
 
 # REST API & MS (SGLPAR)
-IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sycom_sglpar_rest_api_0.2.3.tar" 
+IMAGE_PATH_SGLPAR_REST="/app_services/app_sglpar/image/sycom_sglpar_rest_api_0.2.4.tar" 
 IMAGE_PATH_SGLPAR_MS="/app_services/app_sglpar/image/sycom_sglpar_ms_0.2.3.tar"
 
 # ==============================================================================
@@ -65,8 +65,8 @@ IMG_NAME_SIMF_REST="sycom/simf_rest_api:0.2.2"
 IMG_NAME_SIMF_MS="sycom/simf_ms:0.2.2"
 
 # REST API & MS (SGLPAR)
-IMG_NAME_SGLPAR_REST="sycom/sycom_sglpar_rest_api_0.2.3"
-IMG_NAME_SGLPAR_MS="sycom/sycom_sglpar_ms_0.2.3"
+IMG_NAME_SGLPAR_REST="sycom/sglpar_rest_api:0.2.4"
+IMG_NAME_SGLPAR_MS="sycom/sglpar_ms:0.2.3"
 
 
 
@@ -137,6 +137,7 @@ IMAGE_PATH_POOLEXPORTER="/metrics/pool-exporter/pgpool-exporter.tar"
 # KAFKA-EXPORTER
 IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 
+
 # ==============================================================================
 # DECLARACION DE BINARIOS BALANCEADOR
 # ==============================================================================
@@ -144,7 +145,7 @@ IMAGE_PATH_KAFKA_EXPORTER="/metrics/alloy/kafka-exporter-v1.9.0.tar"
 IMG_NAME_PROMETHEUS="prom/prometheus:v3.12.0"
 
 # ARGUS
-IMG_NAME_ARGUS="argus_api_v7_1_7_8"
+IMG_NAME_ARGUS="argus_api_v7:1.7.8"
 
 # LOKI
 IMG_NAME_LOKI="grafana/loki:3.7.2"
@@ -160,6 +161,9 @@ IMG_NAME_ALERT="projectsintel/alertmanager-simf-v7:1.0.0.1"
 
 # POOL-EXPORTER
 IMG_NAME_POOLEXPORTER="pgpool/pgpool2_exporter:latest"
+
+# NAME-KAFKA-EXPORTER
+IMAGE_NAME_KAFKA_EXPORTER="danielqsj/kafka-exporter:v1.9.0"
 
 
 # ==============================================================================
@@ -235,7 +239,7 @@ binaries_postgres_and_exporter(){
     fi
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep -E "$IMG_NAME_PG_P|$IMG_NAME_PG_R|$IMG_NAME_PG_EXPORTER"
 
 }
@@ -263,7 +267,7 @@ binaries_pgagent(){
     fi 
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA:si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_PGAGENT"
 }
 
@@ -290,7 +294,7 @@ binaries_kafkita(){
     fi 
     
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_KAFKA"
 }
 
@@ -320,7 +324,7 @@ binaries_simf(){
     fi 
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep -E "$IMG_NAME_SIMF_MS|$IMG_NAME_SIMF_REST"
 
 }
@@ -335,24 +339,24 @@ binaries_sglpar(){
         log_warning "Imagenes parciales o ausentes. Iniciando carga..."
 
         if [ -f "$IMAGE_PATH_SGLPAR_REST" ] && [ -f "$IMAGE_PATH_SGLPAR_MS" ]; then
-            echo -n "   Cargando paquete REST API ($IMG_NAME_SGLPAR_REST)..."
+            echo -n "   Cargando paquete REST API ($IMAGE_PATH_SGLPAR_REST)..."
             sudo docker load -i "$IMAGE_PATH_SGLPAR_REST" > /dev/null 2>&1 &
             spinner $!
 
-            echo -n "   Cargando paquete Microservicios ($IMG_NAME_SGLPAR_MS)..."
+            echo -n "   Cargando paquete Microservicios ($IMAGE_PATH_SGLPAR_REST)..."
             sudo docker load -i "$IMAGE_PATH_SGLPAR_MS" > /dev/null 2>&1 &
             spinner $!
         else 
-            log_error "Falta uno o ambos archivos de distribucion .tar en la ruta."            
+            log_error "Falta uno o ambos archivos de distribución .tar en la ruta."            
             exit 1
         fi
     else 
-        log_success "Las imagenes del ecosistema SGLPAR ya estan sincronizadas."
+        log_success "Las imágenes del ecosistema SGLPAR ya están sincronizadas."
     fi 
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
-    sudo docker images | grep -E "$IMG_NAME_SGLPAR_MS|$IMG_NAME_SGLPAR_REST"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    sudo docker images | grep -E "$IMG_NAME_SGLPAR_REST|$IMG_NAME_SGLPAR_MS"
 
 }
 
@@ -396,10 +400,11 @@ binaries_metrics(){
     fi
     
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep -E "$IMG_NAME_ALLOY|$IMG_NAME_DISCOVERY"
 
 }
+
 
 binaries_nginx(){
 
@@ -434,7 +439,7 @@ binaries_nginx(){
     fi
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep -E "$IMG_NAME_NGINX|$IMG_NAME_NGINX_EXPORTER"
 }
 
@@ -459,7 +464,7 @@ binaries_pool(){
         fi
    
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_POOL"
 
 }
@@ -487,7 +492,7 @@ binaries_prometheus(){
     fi
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_PROMETHEUS"
 }
 
@@ -518,7 +523,7 @@ binaries_loki(){
 
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep -E "$IMG_NAME_LOKI|$IMG_NAME_MINIO"
 }
 
@@ -542,7 +547,7 @@ binaries_grafana(){
     fi
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_GRAFANA"
 }
 
@@ -566,7 +571,7 @@ binaries_pool_exporter(){
     fi
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_POOLEXPORTER"
 }
 
@@ -590,14 +595,14 @@ binaries_alertmanager(){
     fi
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_ALERT"
 }
 
 binaries_argus(){
 
     echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
-    echo -e "${DEEP_BLUE}${BOLD}  INYECTANDO BINARIOS DE LA FASE: 5 ALERTMANAGER                      ${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}  INYECTANDO BINARIOS DE LA FASE: 6 ARGUS                            ${COLOR_RESET}"
     echo -e "${NEON_GREEN}${BOLD}====================================================================${COLOR_RESET}"
 
     if [[ -z "$(sudo docker image -q "$IMG_NAME_ARGUS" 2> /dev/null)" ]]; then 
@@ -616,9 +621,38 @@ binaries_argus(){
     fi 
 
     log_success "Binarios cargados con exito"
-    log_info "NOTA: Papu, si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
     sudo docker images | grep "$IMG_NAME_ARGUS"
 
 }
+
+binaries_kafkita_exporter(){
+
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}  INYECTANDO BINARIOS DE LA FASE: 7 KAFKA-EXPORTER                 ${COLOR_RESET}"
+    echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+
+    if [[ -z "$(sudo docker image -q $IMAGE_NAME_KAFKA_EXPORTER 2> /dev/null)" ]]; then
+        log_info "La imagen no existe en este nodo, verificando (.tar)"
+        if [ -f "$IMAGE_PATH_KAFKA_EXPORTER" ]; then
+            log_warning "Cargando Imagen" 
+            sudo docker load -i "$IMAGE_PATH_KAFKA_EXPORTER" > /dev/null 2>&1 &
+            spinner $!
+        else
+            log_error "[Error]: No fue localizada la imagen en la ruta especificada $IMAGE_NAME_KAFKA_EXPORTER"
+        fi
+    else 
+        log_info "La imagen ($IMAGE_NAME_KAFKA_EXPORTER) ya existe, Omitiendo este paso..."
+    fi
+
+    log_success "Binarios cargados con exito"
+    log_info "NOTA: si la imagen no se renderiza al aplicar el filtro es por que no se cargo"
+    sudo docker images | grep "$IMAGE_NAME_KAFKA_EXPORTER"
+}
+
+
+
+
 $@
 

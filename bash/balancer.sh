@@ -25,8 +25,8 @@ press_to_continue() {
 # ==============================================================================
 # VARIABLES DE ENTORNO
 # ==============================================================================
-BALANCER="balancer"
-OBSERVABILITY="observability"
+BALANCER="vasldiccs064"
+OBSERVABILITY="vasldiccs063"
 
 
 # paquetes de configuracion
@@ -49,6 +49,9 @@ MOUNT_OVERLAY="/overlay/"
 DAEMON_JSON="/etc/docker/daemon.json"
 
 MOUNT_VALIDATION="/core"
+
+STARTING_POINT="/opt/Install_v7/bash"
+
 
 
 # ==============================================================================
@@ -220,8 +223,8 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
 
    
     # Invocacando la configuracion del binario
-    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-    sudo bash binary_verification.sh binaries_nginx
+    log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)..."
+    sudo bash $STARTING_POINT/binary_verification.sh binaries_nginx
 
 
     # --- INYECCIÓN DE LABELS ---
@@ -321,7 +324,7 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
                         break 
                         ;;
                     *)
-                        echo -e "Epale papa, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
+                        echo -e "Lo sentimos, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
                         ;;
                 esac
             done
@@ -367,7 +370,7 @@ if [ -d "${MOUNT_BALANCER}nginx" ]; then
                     break
                     ;;
                 *)
-                    echo -e "Epale papa, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
+                    echo -e "Lo sentimos, \"$respuesta\" no es una opcion valida. Intenta de nuevo.\n"
                     ;;
             esac
         done
@@ -402,8 +405,8 @@ clear
         
 
         # Invocacando la configuracion del binario
-        log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios) PAPU..."
-        sudo bash binary_verification.sh binaries_pool
+        log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
+        sudo bash $STARTING_POINT/binary_verification.sh binaries_pool
 
         # --- CONFIGURACIÓN E INYECCIÓN ---
         log_info "Validando existencia de secrets en Docker Swarm..."
