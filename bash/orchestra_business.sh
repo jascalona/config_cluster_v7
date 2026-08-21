@@ -428,16 +428,44 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
             log_info "CREANDO BUCKET PARA LOKI"
-            sudo docker exec -it $(sudo docker ps -q --filter "name=loki_minio") sh -c "mc alias set local http://localhost:9000 minioadmin matrix1357 && mc mb local/loki"
-            log_info "Renderizando lista de buckets"
+
+
+	    CONTAINER_ID=$(sudo docker ps -q --filter "name=loki_minio")
+
+	    # Agregando alias
+	    sudo docker exec "$CONTAINER_ID" sh -c "mc alias set local http://localhost:9000 minioadmin matrix1357" > /dev/null 2>&1
+	   # creando bucket
+	    sudo docker exec "$CONTAINER_ID" sh -c "mc mb --ignore-existing local/loki" > /dev/null 2>&1
+
+	   # Validar con un bucle si el bucket se creó correctamente
+	   MAX_RETRIES=5
+	   RETRY_COUNT=0
+           BUCKET_EXISTS=false
+
+	   while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    	     if sudo docker exec "$CONTAINER_ID" sh -c "mc ls local/loki" > /dev/null 2>&1; then
+             BUCKET_EXISTS=true
+             break
+    	    fi
+    	    echo "Esperando creación del bucket 'loki'..."
+    	    sleep 2
+    	    RETRY_COUNT=$((RETRY_COUNT+1))
+	  done
+
+   	  if [ "$BUCKET_EXISTS" = true ]; then
+    	    log_info "¡Bucket 'loki' verificado con éxito!"
+	  else
+    	    echo -e "${RED}[ERROR] No se pudo confirmar la creación del bucket 'loki' en MinIO.${COLOR_RESET}"
+    	  exit 1
+	  fi
+
+	  log_info "Renderizando lista de buckets"
 
             countdown 2 
             echo -e "\n${BOLD} Verificando estado del loki/minio:${COLOR_RESET}"
             sudo docker stack ps loki --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-
-                
             # Invocacando la configuracion del binario
             log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
             sudo bash $STARTING_POINT/binary_verification.sh binaries_alertmanager
