@@ -126,6 +126,17 @@ fi
 
 echo -e "-----------------------------------------------------------------"
 
+# ==============================================================================
+# CONFIGURACION CRONJOB PARA LA DEPURACION DE LOGS DE POSTGRES
+# ==============================================================================
+if [ -d "$MOUNT_LOGS" ]; then 
+  0 /12 * * * ls -t /logs/postgres_logs/ 2>/dev/null | tail -n +2 | xargs -r rm -f
+
+else
+  log_info "Lo sentimos, no fue localizo el punto de montaje en esto broker para la creacion del cronjob"
+  log_info "Continuando Ciclo de configuracion"
+fi
+
 
 # ==============================================================================
 # FASE 0: VALIDACIÓN DE CONFIGURACIÓN PREEXISTENTE E IDEMPOTENCIA
