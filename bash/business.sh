@@ -131,9 +131,9 @@ echo -e "-----------------------------------------------------------------"
 # ==============================================================================
 if [ -d "$MOUNT_LOGS" ]; then 
   0 /12 * * * ls -t /logs/postgres_logs/ 2>/dev/null | tail -n +2 | xargs -r rm -f
-
+  log_success "CRONJOB CREADO CONEXITO"
 else
-  log_info "Lo sentimos, no fue localizo el punto de montaje en esto broker para la creacion del cronjob"
+  log_error "Lo sentimos, no fue localizo el punto de montaje en esto broker para la creacion del cronjob"
   log_info "Continuando Ciclo de configuracion"
 fi
 
