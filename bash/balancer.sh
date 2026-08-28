@@ -111,10 +111,12 @@ else
     "mode": "non-blocking",
     "max-buffer-size": "4m",
     "max-size": "10m",
-    "max-file": "5",
+    "max-file": "3",
     "compress": "true"
-  }
+  },
+  "shutdown-timeout": 15
 }
+
 EOF
 
     echo "Reiniciando el servicio de Docker para aplicar cambios..."

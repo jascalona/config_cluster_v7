@@ -112,10 +112,12 @@ else
     "mode": "non-blocking",
     "max-buffer-size": "4m",
     "max-size": "10m",
-    "max-file": "5",
+    "max-file": "3",
     "compress": "true"
-  }
+  },
+  "shutdown-timeout": 15
 }
+
 EOF
 
     echo "Reiniciando el servicio de Docker para aplicar cambios..."
@@ -288,102 +290,33 @@ case $opcion in
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
                 log_success "TBPLSCP CREADOS CON EXITO"
 
-                # CUSTOMIZACIÓN DE RECURSOS ASIGNADOS
-                log_info "AJUSTE DE RECURSOS ASIGNADOS (CONFIGURACION DE BD-SIMF PRIMARY)"
-                if [ -f "/app_psql/packague_bd/stack/primary-stack.yml" ]; then 
-                    log_info "APERTURANDO STACK DE BD-SIMF (PRIMARY)"
-                    OPEN_EDITOR=true
-
-                    while true; do 
-                        if [ "$OPEN_EDITOR" = true ]; then
-                            sudo nano "/app_psql/packague_bd/stack/primary-stack.yml" 
-                        fi 
-
-                        echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
-                        read -r respuesta
-
-                        case "$respuesta" in
-                            [Yy]*)
-                                log_info "Edición completada por el usuario. Continuando flujo de configuración..."
-                                break
-                                ;;
-                            [Nn]*)
-                                log_info "Aperturando stack nuevamente..."
-                                OPEN_EDITOR=true
-                                ;;
-                            *)
-                                log_error "\Lo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
-                                OPEN_EDITOR=false
-                                ;;
-                        esac
-                    done
-                else 
-                    log_error "[ERROR]: No fue localizado el stack en la ruta especificada"
-                fi 
-
-                # --- CONFIGURACIÓN E INYECCIÓN ---
-                log_info "Validando resistencia de secret en Docker Swarm ($NAME_POSTGRES)..."
-                if sudo docker secret inspect "$NAME_POSTGRES" >/dev/null 2>&1; then
-                    log_success "Secret existente en el clúster. Omitiendo creación."
-                else 
-                    log_warning "Secret no detectado. Iniciando inyección..."
-                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf' | sudo docker secret create "$NAME_POSTGRES" -
-                    
-                    if sudo docker secret inspect "$NAME_POSTGRES" > /dev/null 2>&1; then
-                        log_success "Secret '$NAME_POSTGRES' creado exitosamente."
-                    else
-                        log_error "Error crítico al crear el secreto '$NAME_POSTGRES'."
-                        exit 1
-                    fi
-                fi
-
-                # CONFIGURACION DE LA RED PG_NET
-                log_info "Escaneando infraestructura de red del clúster (pg_net)..."
-                if sudo docker network inspect pg_net >/dev/null 2>&1; then
-                    log_success "Red overlay 'pg_net' detectada."
-                else
-                    log_warning "Red 'pg_net' ausente. Creando topología overlay..."
-                    sudo docker network create --driver overlay --subnet 10.0.10.0/24 --gateway 10.0.10.1 --opt com.docker.network.driver.mtu=1450 --attachable pg_net
-                    log_success "Red superpuesta distribuida creada correctamente."
-                fi  
-
-                log_info "Infección de etiquetas (Labels) en nodos del Swarm..."
-                sudo docker node update --label-add pg_role=primary "$BUSINESS_01" > /dev/null
-                sudo docker node update --label-add pg_role=replica "$BUSINESS_02" > /dev/null
-                sudo docker node update --label-add pg_role=replica "$BUSINESS_03" > /dev/null
-                log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
+          
 
                 while true; do 
                     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF:${COLOR_RESET}"
-                    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Postgres Original"
-                    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Básica (24GB)"
-                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Media (32GB)"
-                    echo -e "  ${DEEP_BLUE}4)${COLOR_RESET} Infraestructura Extendida (512GB)"
+                    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
+                    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
+                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
-                    read -p "Seleccione el tipo de Infraestructura (1-4): " environment
+                    read -p "Seleccione el tipo de Infraestructura (1-3): " environment
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
                     SRC_FILE=""
                     INFRA_NAME=""
 
                     case $environment in 
-                        1) SRC_ORIGINAL="postgresql.conf"
-                            INFRA_NAME="Fichero Oginal de postgres" # a peticion del Sr. Manuel
-                            INFRA_ORIGINAL="PG_Original"
-			    break
-                            ;;
-                        2)
+                        1)
                             SRC_FILE="postgresql_para24GB.conf"
                             INFRA_NAME="Básica (24GB)"
                             break
                             ;;
-                        3)
+                        2)
                             SRC_FILE="postgresql_para32GB.conf"
                             INFRA_NAME="Mediana (32GB)"
                             break
                             ;;
-                        4)
+                        3)
                             SRC_FILE="postgresql_para512GB.conf"
                             INFRA_NAME="Extendida (512GB)"
                             break
@@ -403,25 +336,7 @@ case $opcion in
                 sudo mv "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
                 log_info "¡Fichero renombrado correctamente a ${NAME_POSTGRES_CONF}!"
                     
-                # --- DESPLIEGUE BD ---
-                log_info "Lanzando stack de base de datos..."
-                if [ -f "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" ]; then 
-                    echo "Desplegando stack 'bd-simf' en Swarm..."
-                    
-                    sudo docker stack deploy -c "${MOUNT_APP_PSQ}packague_bd/stack/primary-stack.yml" bd-simf                    
-                    if [ $? -eq 0 ]; then
-                        log_success "Orden de despliegue enviada correctamente."
-                        echo "   Esperando 5 segundos a que Swarm inicialice las tareas..."
-                        sleep 5
-                        echo -e "${BOLD}Estado inicial del Stack:${COLOR_RESET}"
-                        sudo docker stack ps --no-trunc bd-simf | head -n 5
-                    else
-                        log_error "Docker stack deploy falló al procesar el archivo del servicio."
-                    fi
-                else 
-                    log_error "Manifiesto 'primary-stack.yml' no encontrado."
-                    exit 1
-                fi
+                log_success "CONFIGURACION FINALIZADA CON EXITO!"
             else 
                 log_error "Punto de montaje de base de datos ausente de forma crítica. Abortando flujo."
                 exit 1
@@ -442,22 +357,6 @@ case $opcion in
                 
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
                 sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
-
-                log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
-                if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
-                    log_success "Secret existente en el clúster. Omitiendo creación."
-                else 
-                    log_warning "Secret no detectado. Iniciando inyección..."
-                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf' | sudo docker secret create pgagent_pass -
-                    sudo docker secret inspect "$NAME_PGAGENT" > /dev/null
-                    log_success "Secret creado exitosamente."
-                fi
-
-                log_info "Aprovisionando etiquetas (Labels) en nodos del Swarm..."
-                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_01" > /dev/null
-                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_02" > /dev/null
-                sudo docker node update --label-add pgagent=pgagent "$BUSINESS_03" > /dev/null
-                log_success "Labels asignados a los nodos: $BUSINESS_01, $BUSINESS_02, $BUSINESS_03."
 
             else 
                 log_error "El punto de montaje no fue localizado para este componente"
@@ -513,15 +412,7 @@ case $opcion in
                     log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
                 fi
 
-                log_info "Validando infraestructura de red para telemetría y monitoreo..."
-                if sudo docker network inspect monitoring >/dev/null 2>&1; then
-                    log_success "Red overlay 'monitoring' activa."
-                else
-                    log_warning "Red 'monitoring' ausente. Creando segmento de red..."
-                    sudo docker network create --driver overlay monitoring > /dev/null
-                    log_success "Red superpuesta de monitoreo aislada correctamente."
-                fi  
-
+                log_info "INCIANDO CONFIGURACION DE REPO-DATA"
                 log_info "Estructurando repositorios persistentes de Meta Data..."
                 if [ -d "$DATA_DIR" ]; then 
                     log_warning "Datos antiguos detectados en $DATA_DIR. Purgando volumen..."
@@ -557,31 +448,12 @@ case $opcion in
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
                 sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
 
-                log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
-                if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                    log_success "Red balanceadora 'nginx_lbnet' existente."
-                else
-                    log_warning "Red perimetral ausente. Creando red del balanceador..."
-                    sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                    log_success "Segmentación perimetral configurada."
-                fi  
-
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 echo -e "${DEEP_BLUE}${BOLD}  FASE 5: CONFIGURACION DE MS (SGLPAR)                            ${COLOR_RESET}"
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
                 sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
-                
-                echo "ESCANEANDO REDES NGINX"
-                log_info "Escaneando infraestructura balanceadora perimetral (nginx_lbnet)..."
-                if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                    log_success "Red balanceadora 'nginx_lbnet' existente."
-                else
-                    log_warning "Red perimetral ausente. Creando red del balanceador..."
-                    sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                    log_success "Segmentación perimetral configurada."
-                fi  
 
                 echo -e "\n${NEON_GREEN}${BOLD}==================================================================${COLOR_RESET}"
                 echo -e "${NEON_GREEN}${BOLD}  PROCESO DE CONFIGURACIÓN DEL NODO PRINCIPAL COMPLETADO            ${COLOR_RESET}"
@@ -615,13 +487,7 @@ case $opcion in
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             log_success "LISTANDO IMAGENES"
             sudo docker image ls
-
-            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            log_success "VALIDACION DE BD"
-            
-            log_info "VERIFICANDO EL ESTADO DE LA BD"
-            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
-            
+ 
             break
             ;;
 
@@ -661,6 +527,42 @@ case $opcion in
                 sudo bash "${MOUNT_APP_PSQ}packague_bd/install-bd.sh"
                 log_success "TBPLSCP CREADOS CON EXITO"
 
+
+                while true; do 
+                    echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF: (SE REALIZA ESTE PROCESO PARA LA REPLICA DE LOS CONFIG DE POSTGRES)${COLOR_RESET}"
+                    echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
+                    echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
+                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
+                    echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+                    
+                    read -p "Seleccione el tipo de Infraestructura (1-3): " environment
+                    echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+                    
+                    SRC_FILE=""
+                    INFRA_NAME=""
+
+                    case $environment in 
+                        1)
+                            SRC_FILE="postgresql_para24GB.conf"
+                            INFRA_NAME="Básica (24GB)"
+                            break
+                            ;;
+                        2)
+                            SRC_FILE="postgresql_para32GB.conf"
+                            INFRA_NAME="Mediana (32GB)"
+                            break
+                            ;;
+                        3)
+                            SRC_FILE="postgresql_para512GB.conf"
+                            INFRA_NAME="Extendida (512GB)"
+                            break
+                            ;;
+                        *)
+                            log_error "'$environment' no coincide con ninguna opción disponible.\n"
+                            ;;
+                    esac
+                done 
+
             else 
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
             fi
@@ -680,16 +582,6 @@ case $opcion in
                 
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
                 sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
-
-                log_info "Validando resistencia de secret en Docker Swarm ($NAME_PGAGENT)..."
-                if sudo docker secret inspect "$NAME_PGAGENT" >/dev/null 2>&1; then
-                    log_success "Secret existente en el clúster. Omitiendo creación."
-                else 
-                    log_warning "Secret no detectado. Iniciando inyección..."
-                    sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf'| sudo docker secret create pgagent_pass -
-                    sudo docker secret inspect "$NAME_PGAGENT" > /dev/null
-                    log_success "Secret creado exitosamente."
-                fi
 
             else 
                 log_error "El punto de montaje no fue localizado para este componente"
@@ -775,15 +667,6 @@ case $opcion in
 
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
                 sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
-             
-                log_info "Comprobando red interna compartida (nginx_lbnet)..."
-                if sudo docker network inspect nginx_lbnet >/dev/null 2>&1; then
-                    log_success "Estructura de red compartida activa."
-                else
-                    log_warning "Red ausente. Construyendo topología overlay..."
-                    sudo docker network create --driver overlay nginx_lbnet > /dev/null
-                    log_success "Red superpuesta distribuida acoplada."
-                fi  
                 
                 # --- CONFIGURACIÓN DE SERVICIOS SGLPAR ---
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"

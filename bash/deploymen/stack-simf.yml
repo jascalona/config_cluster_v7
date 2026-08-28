@@ -1,0 +1,417 @@
+version: '3.8'
+
+x-templates:
+  deploy-base: &default_deploy
+    mode: replicated
+    replicas: 2
+    endpoint_mode: dnsrr
+    placement:
+      max_replicas_per_node: 3
+      constraints:
+        - node.labels.pg_role == replica
+        #- "node.labels.pg_role == pg_replica"
+#        - node.hostname == negocio02
+    restart_policy:
+      condition: on-failure
+      delay: 3s
+      max_attempts: 3
+      window: 100s
+    update_config:
+      parallelism: 1
+      order: stop-first
+      failure_action: rollback
+      monitor: 30s
+    rollback_config:
+      parallelism: 0
+      order: stop-first
+
+  env-base: &env-base
+    - TZ=America/Caracas
+  networks-base: &networks-base
+    - pg_net
+    - kafka_kafka-net
+    - nginx_lbnet
+
+  config-rest-base: &config-rest-base
+#    - '/app_services/app_simf/rest_api/nlog.config:/app/nlog.config'
+    - '/app_services/app_simf/rest_api/:/app/config'
+    - '/etc/localtime:/etc/localtime:ro'
+    - '/etc/timezone:/etc/timezone:ro'
+  config-credit-base: &config-credit-base
+ #   - '/app_services/app_simf/credito/nlog.config:/app/nlog.config'
+    - '/app_services/app_simf/credito/:/app/config'
+    - '/etc/localtime:/etc/localtime:ro'
+    - '/etc/timezone:/etc/timezone:ro'
+
+  config-debit-base: &config-debit-base
+  #  - '/app_services/app_simf/debito/nlog.config:/app/nlog.config'
+    - '/app_services/app_simf/debito/:/app/config'
+    - '/etc/localtime:/etc/localtime:ro'
+    - '/etc/timezone:/etc/timezone:ro'
+
+  config-reverso-base: &config-reverso-base
+   # - '/app_services/app_simf/reverso/nlog.config:/app/nlog.config'
+    - '/app_services/app_simf/reverso/:/app/config'
+    - '/etc/localtime:/etc/localtime:ro'
+    - '/etc/timezone:/etc/timezone:ro'
+
+  config-common-base: &config-common-base
+   # - '/app_services/app_simf/comunes/nlog.config:/app/nlog.config'
+    - '/app_services/app_simf/comunes/:/app/config'
+    - '/etc/localtime:/etc/localtime:ro'
+    - '/etc/timezone:/etc/timezone:ro'
+
+  extra-host-base: &extra-host-base
+    - "credito.simf:172.24.199.200"
+    - "debito.simf:172.24.199.200"
+    - "debito.cheque.simf:172.24.199.200"
+    - "debito.otp.simf:172.24.199.200"
+    - "reverso.simf:172.24.199.200"
+
+services:
+  rest_api:
+    image: 'sycom/simf_rest_api:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    ports:
+      - target: 8082
+        published: 8082
+        protocol: tcp
+        mode: host
+    volumes: *config-rest-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "Rest API SIMF"
+        prometheus.scrape: "true"
+        prometheus.port: "8082"
+
+  credito_emisor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransInmdtBcoEmi", "--id", "1-211", "--port", "9101", "--tp", "credito"]
+    ports:
+      - target: 9101
+        published: 9101
+        protocol: tcp
+        mode: host
+    volumes: *config-credit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Crédito Transferencia Inmediata Banco Emisor"
+        prometheus.scrape: "true"
+        prometheus.port: "9101"
+
+  credito_sts_emisor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransInmdtStsRptBcoEmi", "--id", "1-211", "--port", "9103", "--tp", "credito"]
+    ports:
+      - target: 9103
+        published: 9103
+        protocol: tcp
+        mode: host
+    volumes: *config-credit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Crédito Reporte Estatus Banco Emisor"
+        prometheus.scrape: "true"
+        prometheus.port: "9103"
+
+  credito_recept:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransInmdtBcoRec", "--id", "211", "--port", "9102", "--tp", "credito"]
+    ports:
+      - target: 9102
+        published: 9102
+        protocol: tcp
+        mode: host
+    volumes: *config-credit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Crédito Transferencia Inmediata Banco Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9102"
+
+  credito_sts_recept:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransInmdtStsRptBcoRec", "--id", "211", "--port", "9104", "--tp", "credito"]
+    ports:
+      - target: 9104
+        published: 9104
+        protocol: tcp
+        mode: host
+    volumes: *config-credit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Crédito Reporte Estatus Banco Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9104"
+
+  credito_sts_recept_async:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCreditoEstadoReporteCore", "--id", "211", "--port", "9105", "--tp", "credito"]
+    ports:
+      - target: 9105
+        published: 9105
+        protocol: tcp
+        mode: host
+    volumes: *config-credit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Crédito Reporte Estatus Core Async"
+        prometheus.scrape: "true"
+        prometheus.port: "9105"
+
+  debito_emisor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSDebitDirectInmdtBcoEmi", "--id", "1", "--port", "9201", "--tp", "debito"]
+    ports:
+      - target: 9201
+        published: 9201
+        protocol: tcp
+        mode: host
+    volumes: *config-debit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Débito Directo Inmediato Banco Emisor"
+        prometheus.scrape: "true"
+        prometheus.port: "9201"
+
+  debito_receptor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSDebitDirectInmdtBcoRec", "--id", "1", "--port", "9202", "--tp", "debito"]
+    ports:
+      - target: 9202
+        published: 9202
+        protocol: tcp
+        mode: host
+    volumes: *config-debit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Débito Directo Inmediato Banco Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9202"
+
+  debito_sts_emisor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSDebitDirectInmdtStsRptBcoEmi", "--id", "1", "--port", "9203", "--tp", "debito"]
+    ports:
+      - target: 9203
+        published: 9203
+        protocol: tcp
+        mode: host
+    volumes: *config-debit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Débito Reporte Estatus Banco Emisor"
+        prometheus.scrape: "true"
+        prometheus.port: "9203"
+
+  debito_sts_receptor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSDebitDirectInmdtStsRptBcoRec", "--id", "1", "--port", "9204", "--tp", "debito"]
+    ports:
+      - target: 9204
+        published: 9204
+        protocol: tcp
+        mode: host
+    volumes: *config-debit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Débito Reporte Estatus Banco Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9204"
+
+  debito_respuesta_receptor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSDebitDirectInmdtBcoRecStsRptJson", "--id", "1", "--port", "9205", "--tp", "debito"]
+    ports:
+      - target: 9205
+        published: 9205
+        protocol: tcp
+        mode: host
+    volumes: *config-debit-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Débito Respuesta Estatus JSON Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9205"
+
+  reverso_emisor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransRvrBcoEmi", "--id", "1", "--port", "9801", "--tp", "reverso"]
+    ports:
+      - target: 9801
+        published: 9801
+        protocol: tcp
+        mode: host
+    volumes: *config-reverso-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Reverso Banco Emisor"
+        prometheus.scrape: "true"
+        prometheus.port: "9801"
+
+  reverso_receptor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransRvrBcoRec", "--id", "1", "--port", "9802", "--tp", "reverso"]
+    ports:
+      - target: 9802
+        published: 9802
+        protocol: tcp
+        mode: host
+    volumes: *config-reverso-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Reverso Banco Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9802"
+
+  reverso_sts_emisor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransRvrStsRptBcoEmi", "--id", "1", "--port", "9803", "--tp", "reverso"]
+    ports:
+      - target: 9803
+        published: 9803
+        protocol: tcp
+        mode: host
+    volumes: *config-reverso-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Reverso Reporte Estatus Banco Emisor"
+        prometheus.scrape: "true"
+        prometheus.port: "9803"
+
+  reverso_sts_receptor:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSCredtTransRvrStsRptBcoRec", "--id", "1", "--port", "9804", "--tp", "reverso"]
+    ports:
+      - target: 9804
+        published: 9804
+        protocol: tcp
+        mode: host
+    volumes: *config-reverso-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Reverso Reporte Estatus Banco Receptor"
+        prometheus.scrape: "true"
+        prometheus.port: "9804"
+
+  reproceso:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSReproceso", "--id", "1", "--port", "9401", "--tp", "comunes_simf"]
+    ports:
+      - target: 9401
+        published: 9401
+        protocol: tcp
+        mode: host
+    volumes: *config-common-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS Reproceso de Transacciones"
+        prometheus.scrape: "true"
+        prometheus.port: "9401"
+
+  notificaciones:
+    image: 'sycom/simf_ms:0.2.2'
+    hostname: '{{.Service.Name}}-{{.Task.Slot}}'
+    command: ["--ms", "MSMultiServicio", "--id", "1-211", "--port", "9402", "--tp", "comunes_simf"]
+    ports:
+      - target: 9402
+        published: 9402
+        protocol: tcp
+        mode: host
+    volumes: *config-common-base
+    environment: *env-base
+    networks: *networks-base
+    extra_hosts: *extra-host-base
+    deploy:
+      <<: *default_deploy
+      labels:
+        description: "MS MultiServicio de Notificaciones"
+        prometheus.scrape: "true"
+        prometheus.port: "9402"
+
+networks:
+  pg_net:
+    external: true
+  kafka_kafka-net:
+    external: true
+  nginx_lbnet:
+    external: true

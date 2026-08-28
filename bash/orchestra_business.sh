@@ -30,6 +30,10 @@ countdown() {
 
 STARTING_POINT="/opt/Install_v7/bash"
 
+# VARIABLE DE ENTORNOS
+BASIC_DEPLOYMENT="/opt/Install_v7/bash/deploymen"
+
+
 
 # ==============================================================================
 # FLUJO PRINCIPAL - ORQUESTADOR
@@ -41,6 +45,7 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
 
 while true; do 
     echo -e "\n${BOLD}MENÚ DE ORQUESTACIÓN Y DESPLIEGUE:${COLOR_RESET}"
+    echo -e "  ${DEEP_BLUE}0)${COLOR_RESET} Lanzar Stack PostgreSQL (Modo Primary)"
     echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Lanzar Stack PostgreSQL (Modo Réplica)"
     echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Lanzar Stack Pgagent (Pgagent)"
     echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Lanzar Stack kafka(Cluster Kafka)"
@@ -53,22 +58,78 @@ while true; do
 
     read -p "Seleccione una opción de control (1-8): " opcion
 
+
     case $opcion in 
-        1)
+        0)
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: POSTGRESQL REPLICA                     ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
-            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-            # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-            sudo bash $STARTING_POINT/binary_verification.sh binaries_postgres_and_exporter
+            if [ -f "$BASIC_DEPLOYMENT/primary-stack.yml" ]; then 
 
+                # CUSTOMIZACIÓN DE RECURSOS ASIGNADOS
+                log_info "APERTURANDO STACK DE BD-SIMF (PRIMARY)"
+                OPEN_EDITOR=true
 
-            if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
+                while true; do 
+                    if [ "$OPEN_EDITOR" = true ]; then
+                        sudo nano "$BASIC_DEPLOYMENT/primary-stack.yml" 
+                    fi 
+
+                    echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
+                    read -r respuesta
+
+                    case "$respuesta" in
+                        [Yy]*)
+                            log_info "Edición completada por el usuario. Continuando flujo de configuración..."
+                            break
+                            ;;
+                        [Nn]*)
+                            log_info "Aperturando stack nuevamente..."
+                            OPEN_EDITOR=true
+                            ;;
+                        *)
+                            log_error "\Lo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                            OPEN_EDITOR=false
+                            ;;
+                    esac
+                done
+
                 log_info "Desplegando topología en Swarm..."
-                sudo docker stack deploy -c /app_psql/packague_bd/stack/replica-stack.yml pg_replica
+                sudo docker stack deploy -c "$BASIC_DEPLOYMENT/primary-stack.yml" bd-simf
+                echo -e "\n${BOLD}[Estado actual del Stack 'bd-simf']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc bd-simf | head -n 6
+            else 
+                log_error "El stack 'primary-stack.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+
+            log_warning "Enganchando stdout al streaming de logs en tiempo real..."
+            log_info "Presione [Ctrl + C] para salir del visor de logs. El servicio continuará corriendo."
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
+            sleep 2
+
+            countdown 60 "Estabilizando la bd-simf"
+
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            log_success "VERIFICACION DE LA BD-SIMF"
+            
+            log_info "VERIFICANDO EL ESTADO DE LA BD"
+            PGPASSWORD='simf' psql -h localhost -p 5445 -U simf_admin_user -d simf -c "SELECT CASE WHEN pg_is_in_recovery() THEN 'REPLICA (Standby - Solo Lectura)' ELSE 'PRINCIPAL (Primary - Lectura y Escritura)' END AS rol_servidor;"
+
+
+            sudo docker service logs -f bd-simf_bd-simf
+
+        1)
+            clear
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: POSTGRESQL REPLICA                     ${COLOR_RESET}"
+            echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
+
+            if [ -f "$BASIC_DEPLOYMENT/replica-stack.yml" ]; then 
+                log_info "Desplegando topología en Swarm..."
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/replica-stack.yml pg_replica
                 echo -e "\n${BOLD}[Estado actual del Stack 'pg_replica']${COLOR_RESET}"
                 sudo docker stack ps --no-trunc pg_replica | head -n 6
             else 
@@ -81,7 +142,7 @@ while true; do
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}\n"
             sleep 2
 
-            countdown 60 "Estabilizando la replica"
+            countdown 40 "Estabilizando la replica"
 
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             log_success "VERIFICACION DE LA REPLICA"
@@ -100,17 +161,10 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: PGAGENT                               ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            
 
-            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-            # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-            sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
-
-
-            if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
+            if [ -f "$BASIC_DEPLOYMENT/pgagent-stack.yml" ]; then 
                 log_info "Desplegando servicio en Swarm..."
-                sudo docker stack deploy -c /app_psql/pgagent/pgagent-stack.yml pgagent
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/pgagent-stack.yml pgagent
                 echo -e "\n${BOLD}[Estado actual del Stack 'pgagent']${COLOR_RESET}"
                 sudo docker stack ps --no-trunc pgagent | head -n 6
             else 
@@ -132,16 +186,10 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: DISTRIBUTED KAFKA CLUSTER              ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            
-            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-            # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-            sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
-
-
-            if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
+          
+            if [ -f "$BASIC_DEPLOYMENT/kafka.yml" ]; then 
                 log_info "Desplegando topología en Swarm..."
-                sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/kafka.yml kafka
                 echo -e "\n${BOLD}[Estado actual del Stack 'kafka']${COLOR_RESET}"
                 sudo docker stack ps --no-trunc kafka | head -n 6
             else 
@@ -163,16 +211,9 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: MICROSERVICIOS CORE (SIMF)            ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             
-
-                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-                # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-                sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
-
-
-            if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
+            if [ -f "$BASIC_DEPLOYMENT/stack-simf.yml" ]; then 
                 log_info "Desplegando topología en Swarm..."
-                sudo docker stack deploy -c /app_services/app_simf/stack-simf.yml simf
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/stack-simf.yml simf
                 echo -e "\n${BOLD}[Estado actual del Stack 'simf']${COLOR_RESET}"
                 sudo docker stack ps --no-trunc simf | head -n 6
             else 
@@ -194,18 +235,11 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO COMPONENTE: SGLPAR                                ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
-            
 
-                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-                # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-                sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
-
-
-            if [ -f "/app_services/app_sglpar/stack-sglpar.yml" ]; then 
+            if [ -f "$BASIC_DEPLOYMENT/stack-sglpar.yml" ]; then 
                 log_info "Desplegando servicio en Swarm..."
-                sudo docker stack deploy -c /app_services/app_sglpar/stack-sglpar.yml sglpar
-                echo -e "\n${BOLD}[Estado actual del Stack 'pgagent']${COLOR_RESET}"
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/stack-sglpar.yml sglpar
+                echo -e "\n${BOLD}[Estado actual del Stack 'sglpar']${COLOR_RESET}"
                 sudo docker stack ps --no-trunc sglpar | head -n 6
             else 
                 log_error "El manifiesto 'stack-sglpar.yml' no se encontró en la ruta especificada."
@@ -226,39 +260,73 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}  PIPELINE DE DESPLIEGUE GLOBAL PARA NEGOCIO                      ${COLOR_RESET}"
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 
+            # --- STEP 0: DATABASE PRIMARY ---
+            log_info "[Paso 1/6] Lanzando Base de Datos PRimary..."
+            if [ -f "$BASIC_DEPLOYMENT/primary-stack.yml" ]; then 
 
-            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-            # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-            sudo bash $STARTING_POINT/binary_verification.sh binaries_postgres_and_exporter
+                # CUSTOMIZACIÓN DE RECURSOS ASIGNADOS
+                log_info "APERTURANDO STACK DE BD-SIMF (PRIMARY)"
+                OPEN_EDITOR=true
+
+                while true; do 
+                    if [ "$OPEN_EDITOR" = true ]; then
+                        sudo nano "$BASIC_DEPLOYMENT/primary-stack.yml" 
+                    fi 
+
+                    echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
+                    read -r respuesta
+
+                    case "$respuesta" in
+                        [Yy]*)
+                            log_info "Edición completada por el usuario. Continuando flujo de configuración..."
+                            break
+                            ;;
+                        [Nn]*)
+                            log_info "Aperturando stack nuevamente..."
+                            OPEN_EDITOR=true
+                            ;;
+                        *)
+                            log_error "\Lo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                            OPEN_EDITOR=false
+                            ;;
+                    esac
+                done
+
+                log_info "Desplegando topología en Swarm..."
+                sudo docker stack deploy -c "$BASIC_DEPLOYMENT/primary-stack.yml" bd-simf
+                echo -e "\n${BOLD}[Estado actual del Stack 'bd-simf']${COLOR_RESET}"
+                sudo docker stack ps --no-trunc bd-simf | head -n 6
+            else 
+                log_error "El stack 'primary-stack.yml' no se encontró en la ruta especificada."
+                exit 1
+            fi
+
+            countdown 60 "Estabilizando la bd-simf"
+            echo -e "\n${BOLD} Verificando bd-simf):${COLOR_RESET}"
+            sudo docker stack ps bd-simf --no-trunc | head -n 4
+            echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
+
 
             # --- STEP 1: DATABASE REPLICA ---
-            log_info "[Paso 1/5] Lanzando Base de Datos Réplica..."
-            if [ -f "/app_psql/packague_bd/stack/replica-stack.yml" ]; then 
-                sudo docker stack deploy -c /app_psql/packague_bd/stack/replica-stack.yml pg_replica > /dev/null
+            log_info "[Paso 2/6] Lanzando Base de Datos Réplica..."
+            if [ -f "$BASIC_DEPLOYMENT/replica-stack.yml" ]; then 
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/replica-stack.yml pg_replica > /dev/null
                 log_success "Instrucción de despliegue enviada a la API de Swarm."
             else 
                 log_error "Manifiesto crítico ausente: 'replica-stack.yml'"
                 exit 1
             fi
             
-            countdown 60 "Estabilizando la replica"
+            countdown 50 "Estabilizando la replica"
             echo -e "\n${BOLD} Verificando replica):${COLOR_RESET}"
             sudo docker stack ps pg_replica --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-            
-
-            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-            # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-            sudo bash $STARTING_POINT/binary_verification.sh binaries_pgagent
-
 
             # --- STEP 2: PGAGENT BROKERS ---
-            log_info "[Paso 2/5] Lanzando Clúster Distribuido de pgagent..."        
-            if [ -f "/app_psql/pgagent/pgagent-stack.yml" ]; then 
-                sudo docker stack deploy -c /app_psql/pgagent/pgagent-stack.yml pgagent
+            log_info "[Paso 3/6] Lanzando Pgagent..."        
+            if [ -f "$BASIC_DEPLOYMENT/pgagent-stack.yml" ]; then 
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/pgagent-stack.yml pgagent
                 log_success "Instrucción de despliegue enviada a la API de Swarm."
             else 
                 log_error "El manifiesto 'pgagent-stack.yml' no se encontró en la ruta especificada."
@@ -270,17 +338,10 @@ while true; do
             sudo docker stack ps pgagent --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-            log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-            # Invocacando la configuracion del binario
-            log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-            sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
-
-
-
             # --- STEP 3: KAFKA BROKERS ---
-            log_info "[Paso 3/5] Lanzando Clúster Distribuido de Kafka..."
-            if [ -f "/kafka/kafka/stack/kafka.yml" ]; then 
-                sudo docker stack deploy -c /kafka/kafka/stack/kafka.yml kafka > /dev/null
+            log_info "[Paso 4/6] Lanzando Clúster Distribuido de Kafka..."
+            if [ -f "$BASIC_DEPLOYMENT/kafka.yml" ]; then 
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/kafka.yml kafka > /dev/null
                 log_success "Instrucción de despliegue enviada a la API de Swarm."
             else 
                 log_error "Manifiesto crítico ausente: 'kafka.yml'"
@@ -292,16 +353,10 @@ while true; do
             sudo docker stack ps kafka --no-trunc | head -n 4
             echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
 
-                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-                # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-                sudo bash $STARTING_POINT/binary_verification.sh binaries_simf
-
-
             # --- STEP 4: CORE MICROSERVICES ---
-            log_info "[Paso 4/5] Lanzando Ecosistema de Microservicios (SIMF)..."
-            if [ -f "/app_services/app_simf/stack-simf.yml" ]; then 
-                sudo docker stack deploy -c /app_services/app_simf/stack-simf.yml simf > /dev/null
+            log_info "[Paso 5/6] Lanzando Ecosistema de Microservicios (SIMF)..."
+            if [ -f "$BASIC_DEPLOYMENT/stack-simf.yml" ]; then 
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/stack-simf.yml simf > /dev/null
                 log_success "Instrucción de despliegue enviada a la API de Swarm."
             else 
                 log_error "Manifiesto crítico ausente: 'stack-simf.yml'"
@@ -313,17 +368,10 @@ while true; do
             sudo docker stack ps simf --no-trunc | head -n 4
 
 
-
-                log_info "VERIFICANDO LA PERSISTENCIA DE BINARIOS"
-                # Invocacando la configuracion del binario
-                log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
-                sudo bash $STARTING_POINT/binary_verification.sh binaries_sglpar
-
-
             # --- STEP 5: CORE MICROSERVICES ---
-            log_info "[Paso 5/5] Lanzando Ecosistema de Microservicios (SIMF)..."
-            if [ -f "/app_services/app_sglpar/stack-sglpar.yml" ]; then 
-                sudo docker stack deploy -c /app_services/app_sglpar/stack-sglpar.yml sglpar > /dev/null
+            log_info "[Paso 6/6] Lanzando Ecosistema de Microservicios (SIMF)..."
+            if [ -f "$BASIC_DEPLOYMENT/stack-sglpar.yml" ]; then 
+                sudo docker stack deploy -c $BASIC_DEPLOYMENT/stack-sglpar.yml sglpar > /dev/null
                 log_success "Instrucción de despliegue enviada a la API de Swarm."
             else 
                 log_error "Manifiesto crítico ausente: 'stack-sglpar.yml'"
@@ -345,8 +393,6 @@ while true; do
             break
             ;;
             
-        
-        
         7)
 
             # --- INICIO DEL PIPELINE DE DESPLIEGUE OBSERVABILIDAD ---
@@ -397,8 +443,8 @@ while true; do
 
             # --- STEP 3: Alloy
             log_info "[Paso 3/7] Lanzando Alloy"
-            if [ -f "/metrics/alloy/observability.yml" ]; then
-                sudo NODE_IP=$(hostname -I | awk '{print $1}') docker stack deploy -c /metrics/alloy/observability.yml alloy > /dev/null
+            if [ -f "$BASIC_DEPLOYMENT/observability.yml" ]; then
+                sudo docker stack deploy -c /metrics/alloy/observability.yml alloy > /dev/null
                 log_success "Instrucción de despliegue de alloy enviada a la API de Swarm"
             else 
                 log_error "Stack crítico ausente: '/metrics/alloy/observability.yml'"
