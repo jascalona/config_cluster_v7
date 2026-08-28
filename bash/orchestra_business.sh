@@ -121,6 +121,9 @@ while true; do
 
             sudo docker service logs -f bd-simf_bd-simf
 
+            break
+            ;;
+
         1)
             clear
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
@@ -188,6 +191,33 @@ while true; do
             echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
           
             if [ -f "$BASIC_DEPLOYMENT/kafka.yml" ]; then 
+
+                log_info "APERTURANDO STACK DE KAFKA"
+                ABRIR_EDITOR=true
+                while true; do
+                    if [ "$ABRIR_EDITOR" = true ]; then
+                        sudo nano "$BASIC_DEPLOYMENT/kafka.yml"
+                    fi
+
+                    echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
+                    read -r respuesta
+
+                    case "$respuesta" in
+                        [Yy]*)
+                            log_info "Edición completada por el usuario. Continuando el flujo..."
+                            break
+                            ;;
+                        [Nn]*)
+                            log_info "Aperturando nuevamente el fichero..."
+                            ABRIR_EDITOR=true
+                            ;;
+                        *)
+                            echo -e "\nLo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                            ABRIR_EDITOR=false
+                            ;;
+                    esac
+                done
+
                 log_info "Desplegando topología en Swarm..."
                 sudo docker stack deploy -c $BASIC_DEPLOYMENT/kafka.yml kafka
                 echo -e "\n${BOLD}[Estado actual del Stack 'kafka']${COLOR_RESET}"
@@ -295,7 +325,6 @@ while true; do
                 log_info "Desplegando topología en Swarm..."
                 sudo docker stack deploy -c "$BASIC_DEPLOYMENT/primary-stack.yml" bd-simf
                 echo -e "\n${BOLD}[Estado actual del Stack 'bd-simf']${COLOR_RESET}"
-                sudo docker stack ps --no-trunc bd-simf | head -n 6
             else 
                 log_error "El stack 'primary-stack.yml' no se encontró en la ruta especificada."
                 exit 1
@@ -341,6 +370,32 @@ while true; do
             # --- STEP 3: KAFKA BROKERS ---
             log_info "[Paso 4/6] Lanzando Clúster Distribuido de Kafka..."
             if [ -f "$BASIC_DEPLOYMENT/kafka.yml" ]; then 
+                log_info "APERTURANDO STACK DE KAFKA"
+                ABRIR_EDITOR=true
+                while true; do
+                    if [ "$ABRIR_EDITOR" = true ]; then
+                        sudo nano "$BASIC_DEPLOYMENT/kafka.yml"
+                    fi
+
+                    echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
+                    read -r respuesta
+
+                    case "$respuesta" in
+                        [Yy]*)
+                            log_info "Edición completada por el usuario. Continuando el flujo..."
+                            break
+                            ;;
+                        [Nn]*)
+                            log_info "Aperturando nuevamente el fichero..."
+                            ABRIR_EDITOR=true
+                            ;;
+                        *)
+                            echo -e "\nLo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
+                            ABRIR_EDITOR=false
+                            ;;
+                    esac
+                done
+
                 sudo docker stack deploy -c $BASIC_DEPLOYMENT/kafka.yml kafka > /dev/null
                 log_success "Instrucción de despliegue enviada a la API de Swarm."
             else 

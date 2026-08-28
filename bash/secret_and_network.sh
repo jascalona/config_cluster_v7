@@ -57,6 +57,8 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
         fi
     fi
 
+    log_success "RENDERIZANDO LISTA DE SECRET"
+    sudo docker secret ls
 
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO CONFIGURACION DE REDES                           ${COLOR_RESET}"
@@ -96,6 +98,8 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
         log_success "Segmentación perimetral configurada."
     fi  
 
+    log_success "RENDERIZANDO LISTA DE REDES"
+    sudo docker network ls
 
 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
 echo -e "${DEEP_BLUE}${BOLD}  INICIALIZANDO PARSEO DE LABELS                                 ${COLOR_RESET}"

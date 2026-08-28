@@ -380,38 +380,7 @@ case $opcion in
 
                 echo -e "${DEEP_BLUE}${BOLD}==================================================================${COLOR_RESET}"
                 log_info "AJUSTE EL HOSTNAME (node.hostname) en la configuracion de kafka"
-               
-                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
-                    log_info "APERTURANDO STACK DE KAFKA"
-                    ABRIR_EDITOR=true
-
-                    while true; do
-                        if [ "$ABRIR_EDITOR" = true ]; then
-                            sudo nano "/kafka/kafka/stack/kafka.yml"
-                        fi
-
-                        echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
-                        read -r respuesta
-
-                        case "$respuesta" in
-                            [Yy]*)
-                                log_info "Edición completada por el usuario. Continuando el flujo..."
-                                break
-                                ;;
-                            [Nn]*)
-                                log_info "Aperturando nuevamente el fichero..."
-                                ABRIR_EDITOR=true
-                                ;;
-                            *)
-                                echo -e "\nLo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
-                                ABRIR_EDITOR=false
-                                ;;
-                        esac
-                    done
-                else 
-                    log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
-                fi
-
+        
                 log_info "INCIANDO CONFIGURACION DE REPO-DATA"
                 log_info "Estructurando repositorios persistentes de Meta Data..."
                 if [ -d "$DATA_DIR" ]; then 
@@ -602,37 +571,6 @@ case $opcion in
                 log_info "INVOCANDO LA CONFIGURACION MAESTRA (Carga de binarios)"
                 sudo bash $STARTING_POINT/binary_verification.sh binaries_kafkita
 
-                if [ -f "/kafka/kafka/stack/kafka.yml" ]; then
-                    log_info "APERTURANDO STACK DE KAFKA"
-                    
-                    ABRIR_EDITOR=true
-
-                    while true; do
-                        if [ "$ABRIR_EDITOR" = true ]; then
-                            sudo nano "/kafka/kafka/stack/kafka.yml"
-                        fi
-
-                        echo -e "\n¿Has terminado de ajustar el fichero? (y/n)"
-                        read -r respuesta
-
-                        case "$respuesta" in
-                            [Yy]* | "")
-                                log_info "Edición completada por el usuario. Continuando el flujo de configuración..."
-                                break
-                                ;;
-                            [Nn]*)
-                                log_info "Aperturando nuevamente el fichero..."
-                                ABRIR_EDITOR=true
-                                ;;
-                            *)
-                                echo -e "\nLo sentimos, '$respuesta' no es una opción válida. Intenta de nuevo.\n"
-                                ABRIR_EDITOR=false
-                                ;;
-                        esac
-                    done
-                else 
-                    log_error "[ERROR]: No fue localizado el archivo kafka.yml en la ruta especificada"
-                fi
 
                 log_info "Preparando partición física y metadatos..."
                 if [ -d "$DATA_DIR" ]; then 
