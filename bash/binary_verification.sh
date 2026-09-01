@@ -96,7 +96,7 @@ IMAGE_PATH_NGINX="/balancer/nginx/simf/nginx.tar"
 IMAGE_PATH_NGINX_EXPORTER="/balancer/nginx/simf/nginx-exporter.tar"
 
 # PGPOOL
-IMAGE_PATH_POOL="/balancer/pgpool-conf/pgpool.tar"
+IMAGE_PATH_POOL="/balancer/pgpool-conf/pgpool-sentinel.tar"
 
 # ==============================================================================
 # DECLARACION DE BINARIOS BALANCEADOR
@@ -106,7 +106,7 @@ IMG_NAME_NGINX="nginx:1.27"
 IMG_NAME_NGINX_EXPORTER="nginx/nginx-prometheus-exporter:1.1.0"
 
 # PGPOOL
-IMG_NAME_POOL="pgpool/pgpool:latest"
+IMG_NAME_POOL="pgpool-sentinel:latest"
 
 
 

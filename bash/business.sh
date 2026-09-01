@@ -333,7 +333,7 @@ case $opcion in
                 log_info "Has seleccionado una Infraestructura ${INFRA_NAME}"
                 log_info "Renombrando el fichero de configuración..."
 
-                sudo mv "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
+                sudo cp "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
                 log_info "¡Fichero renombrado correctamente a ${NAME_POSTGRES_CONF}!"
                     
                 log_success "CONFIGURACION FINALIZADA CON EXITO!"
@@ -531,6 +531,18 @@ case $opcion in
                             ;;
                     esac
                 done 
+
+
+                # ==================================================================
+                # (LÓGICA CENTRALIZADA)
+                # ==================================================================
+                log_info "Has seleccionado una Infraestructura ${INFRA_NAME}"
+                log_info "Renombrando el fichero de configuración..."
+
+                sudo cp "${ROUTE_CREATION_BD}/${SRC_FILE}" "${ROUTE_CREATION_BD}/${NAME_POSTGRES_CONF}"
+                log_info "¡Fichero renombrado correctamente a ${NAME_POSTGRES_CONF}!"
+                    
+                log_success "CONFIGURACION FINALIZADA CON EXITO!"
 
             else 
                 log_error "No se detectó el volumen requerido en la ruta: $MOUNT_APP_PSQ"
