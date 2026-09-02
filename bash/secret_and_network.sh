@@ -57,6 +57,23 @@ echo -e "${DEEP_BLUE}${BOLD}====================================================
         fi
     fi
 
+    log_info "Validando Persistencia del secret en el cluster (pgagent_pass)..."
+    if sudo docker secret inspect pgagent_pass >/dev/null 2>&1; then
+        log_success "Secret existente en el clúster. Omitiendo creación."
+    else 
+        log_warning "Secret no detectado. Iniciando inyección..."
+        sudo printf '%s\n' '*:9997:*:postgres:PO$tgr3$.BD' '*:9997:*:simf_admin_user:simf'| sudo docker secret create pgagent_pass -
+                    
+        if sudo docker secret inspect pgagent_pass > /dev/null 2>&1; then
+            log_success "Secret 'pgagent_pass' creado exitosamente."
+        else
+            log_error "Error crítico al crear el secreto 'pgagent_pass'."
+            exit 1
+        fi
+    fi
+
+
+
     log_success "RENDERIZANDO LISTA DE SECRET"
     sudo docker secret ls
 
