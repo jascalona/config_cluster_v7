@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  pgagent:
+    image: pg_pgagent
+    networks:
+      - pg_net
+    environment:
+      DB_HOST: tasks.pgpool_pgpool
+      DB_PORT: "9997"
+      DB_USER: postgres
+      DB_NAME: postgres
+    secrets:
+      - pgagent_pass
+    configs:
+      - source: servipgagent
+        target: /var/lib/postgresql/entrypoint.sh
+        mode: 0775
+    command: >
+      bash -c "./var/lib/postgresql/entrypoint.sh"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.pgagent == pgagent
+      endpoint_mode: dnsrr
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+networks:
+  pg_net:
+    external: true
+secrets:
+  pgagent_pass:
+    external: true
+configs:
+  servipgagent:
+    file: /app_psql/pgagent/entrypoint.sh
+

@@ -1,0 +1,229 @@
+version: "3.8"
+
+networks:
+  kafka-net:
+    driver: overlay
+    attachable: true
+  monitoring:
+    external: true
+
+x-common-env: &common_env
+  KAFKA_PROCESS_ROLES: "broker,controller"
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+  KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+  KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+  KAFKA_NUM_PARTITIONS: "3"
+  KAFKA_DEFAULT_REPLICATION_FACTOR: "3"
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "3"
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "2"
+  ALLOW_PLAINTEXT_LISTENER: "yes"
+  KAFKA_ENABLE_JMX_EXPORTER: "true"
+  KAFKA_CONTROLLER_QUORUM_TIMEOUT_MS: "5000"
+  KAFKA_CONTROLLER_QUORUM_FETCH_TIMEOUT_MS: "5000"
+  KAFKA_CONTROLLER_QUORUM_RETRY_BACKOFF_MS: "200"
+  CLUSTER_ID: "dbc144b0-e0f8-43d0-af2a-fc6f619eef5a"
+  TZ: "America/Caracas"
+
+  # =========================================================================
+  # CONFIGURACIÓN PARA SALIDA DE LOGS EN FORMATO JSON
+  # =========================================================================
+  KAFKA_LOG4J_ROOT_LOGLEVEL: "INFO"
+  KAFKA_LOG4J_LOG_LEVEL: "INFO"
+  # Le indicamos a Log4j2 que use JsonTemplateLayout para stdout
+  KAFKA_LOG4J_APPENDER_STDOUT_LAYOUT: "org.apache.logging.log4j.core.layout.JsonTemplateLayout"
+
+services:
+  # -------------------------------------------------------------------------
+  # BROKER 1
+  # -------------------------------------------------------------------------
+  kafka1:
+    image: projectsintel/kafka-simf-v7:1.0.2
+    networks: [kafka-net, monitoring]
+    labels:
+      prometheus.scrape: "true"
+      prometheus.port: "7071"
+
+    volumes:
+      - /kafka/kafka/data:/opt/kafka/data
+      - /kafka/kafka/jmx:/opt/jmx
+    environment:
+      <<: *common_env
+      KAFKA_NODE_ID: "1"
+      KAFKA_LOG_DIRS: "/opt/kafka/data"
+      KAFKA_LISTENERS: "CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:9094"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka1:9092,EXTERNAL://kafka1:9094"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+      KAFKA_OPTS: >-
+        -javaagent:/opt/jmx/jmx_prometheus_javaagent-1.4.0.jar=7071:/opt/jmx/kafka-jmx.yml
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == vasldiccs060
+      labels:
+        prometheus.scrape: "true"
+        prometheus.port: "7071"
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '4.0G'
+        reservations:
+          cpus: '0.5'
+          memory: '2.3G'
+    ports:
+      - target: 7071
+        published: 17071
+        protocol: tcp
+        mode: host
+      - target: 9093
+        published: 9093
+        protocol: tcp
+        mode: host
+      - target: 9092
+        published: 9092
+        protocol: tcp
+        mode: host
+      - target: 9094
+        published: 19094
+        protocol: tcp
+        mode: host
+
+  # -------------------------------------------------------------------------
+  # BROKER 2
+  # -------------------------------------------------------------------------
+  kafka2:
+    image: projectsintel/kafka-simf-v7:1.0.2
+    networks: [kafka-net, monitoring]
+    labels:
+      prometheus.scrape: "true"
+      prometheus.port: "7071"
+
+    volumes:
+      - /kafka/kafka/data:/opt/kafka/data
+      - /kafka/kafka/jmx:/opt/jmx
+    environment:
+      <<: *common_env
+      KAFKA_NODE_ID: "2"
+      KAFKA_LOG_DIRS: "/opt/kafka/data"
+      KAFKA_LISTENERS: "CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:9094"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka2:9092,EXTERNAL://kafka2:9094"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+      KAFKA_OPTS: >-
+        -javaagent:/opt/jmx/jmx_prometheus_javaagent-1.4.0.jar=7071:/opt/jmx/kafka-jmx.yml
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == vasldiccs061
+      labels:
+        prometheus.scrape: "true"
+        prometheus.port: "7071"
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '4.0G'
+        reservations:
+          cpus: '0.5'
+          memory: '2.3G'
+    ports:
+      - target: 7071
+        published: 27071
+        protocol: tcp
+        mode: host
+      - target: 9093
+        published: 29093
+        protocol: tcp
+        mode: host
+      - target: 9092
+        published: 29092
+        protocol: tcp
+        mode: host
+      - target: 9094
+        published: 29094
+        protocol: tcp
+        mode: host
+
+  # -------------------------------------------------------------------------
+  # BROKER 3
+  # -------------------------------------------------------------------------
+  kafka3:
+    image: projectsintel/kafka-simf-v7:1.0.2
+    networks: [kafka-net, monitoring]
+    labels:
+      prometheus.scrape: "true"
+      prometheus.port: "7071"
+
+    volumes:
+      - /kafka/kafka/data:/opt/kafka/data
+      - /kafka/kafka/jmx:/opt/jmx
+    environment:
+      <<: *common_env
+      KAFKA_NODE_ID: "3"
+      KAFKA_LOG_DIRS: "/opt/kafka/data"
+      KAFKA_LISTENERS: "CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:9094"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka3:9092,EXTERNAL://kafka3:9094"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:9093,2@kafka2:9093,3@kafka3:9093"
+      KAFKA_OPTS: >-
+        -javaagent:/opt/jmx/jmx_prometheus_javaagent-1.4.0.jar=7071:/opt/jmx/kafka-jmx.yml
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == vasldiccs062
+      labels:
+        prometheus.scrape: "true"
+        prometheus.port: "7071"
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '4.0G'
+        reservations:
+          cpus: '0.5'
+          memory: '2.3G'
+    ports:
+      - target: 7071
+        published: 37071
+        protocol: tcp
+        mode: host
+      - target: 9093
+        published: 39093
+        protocol: tcp
+        mode: host
+      - target: 9092
+        published: 39092
+        protocol: tcp
+        mode: host
+      - target: 9094
+        published: 39094
+        protocol: tcp
+        mode: host
+
+  # -------------------------------------------------------------------------
+  # EXPORTER (Sidecar)
+  # -------------------------------------------------------------------------
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    command: 
+      - "--kafka.server=kafka1:9092"
+      - "--kafka.server=kafka2:9092"
+      - "--kafka.server=kafka3:9092"
+    networks: [kafka-net, monitoring]
+    deploy:
+      placement:
+        constraints:
+          - node.labels.role == observability 
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 10
+      labels: # ESTE SE MANTIENE YA QUE VA DESPLEGADO ENOBSERVABILIDAD
+        prometheus.scrape: "true"
+        prometheus.port: "9308"
+    ports:
+      - target: 9308
+        published: 9308 
+        mode: host
