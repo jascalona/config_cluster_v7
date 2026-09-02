@@ -296,10 +296,9 @@ case $opcion in
                     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF:${COLOR_RESET}"
                     echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
                     echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
-                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
-                    read -p "Seleccione el tipo de Infraestructura (1-3): " environment
+                    read -p "Seleccione el tipo de Infraestructura (1-2): " environment
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
                     SRC_FILE=""
@@ -314,11 +313,6 @@ case $opcion in
                         2)
                             SRC_FILE="postgresql_para32GB.conf"
                             INFRA_NAME="Mediana (32GB)"
-                            break
-                            ;;
-                        3)
-                            SRC_FILE="postgresql_para512GB.conf"
-                            INFRA_NAME="Extendida (512GB)"
                             break
                             ;;
                         *)
@@ -501,10 +495,9 @@ case $opcion in
                     echo -e "\n${BOLD}MENÚ DE OPCIONES DE CONFIGURACIÓN POSTGRESQL.CONF: (SE REALIZA ESTE PROCESO PARA LA REPLICA DE LOS CONFIG DE POSTGRES)${COLOR_RESET}"
                     echo -e "  ${DEEP_BLUE}1)${COLOR_RESET} Infraestructura Básica (24GB)"
                     echo -e "  ${DEEP_BLUE}2)${COLOR_RESET} Infraestructura Media (32GB)"
-                    echo -e "  ${DEEP_BLUE}3)${COLOR_RESET} Infraestructura Extendida (512GB)"
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
-                    read -p "Seleccione el tipo de Infraestructura (1-3): " environment
+                    read -p "Seleccione el tipo de Infraestructura (1-2): " environment
                     echo -e "${DEEP_BLUE}------------------------------------------------------------------${COLOR_RESET}"
                     
                     SRC_FILE=""
@@ -519,11 +512,6 @@ case $opcion in
                         2)
                             SRC_FILE="postgresql_para32GB.conf"
                             INFRA_NAME="Mediana (32GB)"
-                            break
-                            ;;
-                        3)
-                            SRC_FILE="postgresql_para512GB.conf"
-                            INFRA_NAME="Extendida (512GB)"
                             break
                             ;;
                         *)

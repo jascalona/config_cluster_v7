@@ -498,7 +498,7 @@ while true; do
 
             # --- STEP 3: Alloy
             log_info "[Paso 3/7] Lanzando Alloy"
-            if [ -f "$BASIC_DEPLOYMENT/observability.yml" ]; then
+            if [ -f "/metrics/alloy/observability.yml" ]; then
                 sudo docker stack deploy -c /metrics/alloy/observability.yml alloy > /dev/null
                 log_success "Instrucción de despliegue de alloy enviada a la API de Swarm"
             else 
@@ -531,36 +531,36 @@ while true; do
             log_info "CREANDO BUCKET PARA LOKI"
 
 
-	    CONTAINER_ID=$(sudo docker ps -q --filter "name=loki_minio")
+	    #CONTAINER_ID=$(sudo docker ps -q --filter "name=loki_minio")
 
 	    # Agregando alias
-	    sudo docker exec "$CONTAINER_ID" sh -c "mc alias set local http://localhost:9000 minioadmin matrix1357" > /dev/null 2>&1
+	  #  sudo docker exec "$CONTAINER_ID" sh -c "mc alias set local http://localhost:9000 minioadmin matrix1357" > /dev/null 2>&1
 	   # creando bucket
-	    sudo docker exec "$CONTAINER_ID" sh -c "mc mb --ignore-existing local/loki" > /dev/null 2>&1
+	  #  sudo docker exec "$CONTAINER_ID" sh -c "mc mb --ignore-existing local/loki" > /dev/null 2>&1
 
 	   # Validar con un bucle si el bucket se creó correctamente
-	   MAX_RETRIES=5
-	   RETRY_COUNT=0
-           BUCKET_EXISTS=false
+	#   MAX_RETRIES=5
+	#   RETRY_COUNT=0
+    #       BUCKET_EXISTS=false
 
-	   while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    	     if sudo docker exec "$CONTAINER_ID" sh -c "mc ls local/loki" > /dev/null 2>&1; then
-             BUCKET_EXISTS=true
-             break
-    	    fi
-    	    echo "Esperando creación del bucket 'loki'..."
-    	    sleep 2
-    	    RETRY_COUNT=$((RETRY_COUNT+1))
-	  done
+	#   while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    #	     if sudo docker exec "$CONTAINER_ID" sh -c "mc ls local/loki" > /dev/null 2>&1; then
+    #         BUCKET_EXISTS=true
+    #         break
+    #	    fi
+    #	    echo "Esperando creación del bucket 'loki'..."
+    #	    sleep 2
+    #	    RETRY_COUNT=$((RETRY_COUNT+1))
+	#  done
 
-   	  if [ "$BUCKET_EXISTS" = true ]; then
-    	    log_info "¡Bucket 'loki' verificado con éxito!"
-	  else
-    	    echo -e "${RED}[ERROR] No se pudo confirmar la creación del bucket 'loki' en MinIO.${COLOR_RESET}"
-    	  exit 1
-	  fi
+   	#  if [ "$BUCKET_EXISTS" = true ]; then
+    #	    log_info "¡Bucket 'loki' verificado con éxito!"
+	#  else
+    #	    echo -e "${RED}[ERROR] No se pudo confirmar la creación del bucket 'loki' en MinIO.${COLOR_RESET}"
+    #	  exit 1
+	#  fi
 
-	  log_info "Renderizando lista de buckets"
+	#  log_info "Renderizando lista de buckets"
 
             countdown 2 
             echo -e "\n${BOLD} Verificando estado del loki/minio:${COLOR_RESET}"
