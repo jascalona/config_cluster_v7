@@ -1,0 +1,277 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// ---------------------------------------------------------
+// DESTINOS FINALES
+// ---------------------------------------------------------
+prometheus.remote_write "prom_dest" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+    basic_auth {
+      username = "admin"
+      password = "$Yc0m-2023"
+    }
+  }
+
+  wal {
+    truncate_frequency = "30m"
+    max_keepalive_time = "6h"
+  }
+}
+
+loki.write "loki_dest" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ---------------------------------------------------------
+// PROCESADOR GLOBAL DE MÉTRICAS (KAFKA RELABELING)
+// ---------------------------------------------------------
+prometheus.relabel "metrics_enricher" {
+  rule {
+    source_labels = ["job", "address"]
+    separator     = ";"
+    regex         = ".*kafka-exporter.*;(.+)"
+    target_label  = "node_name"
+    replacement   = "$1"
+    action        = "replace"
+  }
+
+  forward_to = [prometheus.remote_write.prom_dest.receiver]
+}
+
+// ---------------------------------------------------------
+// INFRAESTRUCTURA: NODE EXPORTER
+// ---------------------------------------------------------
+prometheus.exporter.unix "local_node" {
+  rootfs_path = "/host/root"
+  sysfs_path  = "/host/sys"
+  procfs_path = "/host/proc"
+}
+
+discovery.relabel "node_enriched" {
+  targets = prometheus.exporter.unix.local_node.targets
+  rule {
+    replacement  = sys.env("NODE_NAME")
+    target_label = "node_name"
+  }
+  rule {
+    replacement  = sys.env("NODE_IP")
+    target_label = "node_ip"
+  }
+}
+
+prometheus.scrape "node_metrics" {
+  targets         = discovery.relabel.node_enriched.output
+  forward_to      = [prometheus.remote_write.prom_dest.receiver]
+  scrape_interval = "25s"
+}
+
+// ---------------------------------------------------------
+// INFRAESTRUCTURA: CADVISOR (PERSISTENCIA DE SWARM Y HA)
+// ---------------------------------------------------------
+prometheus.exporter.cadvisor "local_cadvisor" {
+  docker_host = "unix:///var/run/docker.sock"
+
+  docker_only      = true
+  storage_duration = "1m"
+
+  enabled_metrics = [
+    "cpu",
+    "memory",
+    "network",
+    "oom_event",
+    "diskIO",
+  ]
+}
+
+discovery.relabel "cadvisor_enriched" {
+  targets = prometheus.exporter.cadvisor.local_cadvisor.targets
+
+  rule {
+    replacement  = sys.env("NODE_NAME")
+    target_label = "node_name"
+  }
+  rule {
+    replacement  = sys.env("NODE_IP")
+    target_label = "node_ip"
+  }
+
+  rule {
+    source_labels = ["container_label_com_docker_swarm_service_name"]
+    regex         = "(.+)"
+    target_label  = "swarm_service"
+    replacement   = "$1"
+    action        = "replace"
+  }
+
+  rule {
+    source_labels = ["container_label_com_docker_swarm_service_name"]
+    regex         = "(.+)"
+    target_label  = "container_name"
+    replacement   = "$1"
+    action        = "replace"
+  }
+}
+
+prometheus.scrape "cadvisor_metrics" {
+  targets         = discovery.relabel.cadvisor_enriched.output
+  forward_to      = [prometheus.remote_write.prom_dest.receiver]
+  scrape_interval = "15s"
+}
+
+// ---------------------------------------------------------
+// DISCOVERY: DOCKER LOCAL (Compatible con Managers y Workers)
+// Reemplaza discovery.dockerswarm para evitar errores en Workers
+// ---------------------------------------------------------
+discovery.docker "local_containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "metrics_filter" {
+  targets = discovery.docker.local_containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_prometheus_scrape"]
+    action        = "keep"
+    regex         = "true"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    target_label  = "job"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+
+  rule {
+    target_label = "node_name"
+    replacement  = sys.env("NODE_NAME")
+  }
+
+  rule {
+    target_label = "node_ip"
+    replacement  = sys.env("NODE_IP")
+  }
+
+  rule {
+    source_labels = ["__address__", "__meta_docker_container_label_prometheus_port"]
+    separator     = ";"
+    regex         = "(.+):\\d+;(\\d+)"
+    replacement   = "$1:$2"
+    target_label  = "__address__"
+  }
+}
+
+prometheus.scrape "container_services" {
+  targets        = discovery.relabel.metrics_filter.output
+  forward_to     = [prometheus.relabel.metrics_enricher.receiver]
+  scrape_timeout = "10s"
+}
+
+// ---------------------------------------------------------
+// LOGS PIPELINE: DOCKER CONTAINERS (TOLERANTE A HA Y FAILOVER)
+// Captura directa de la consola de todos los contenedores (Postgres, PgPool, Apps, etc.)
+// ---------------------------------------------------------
+discovery.docker "linux" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "logs_integrations_docker" {
+  targets = discovery.docker.linux.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    target_label  = "swarm_service"
+  }
+
+  rule {
+    target_label = "instance"
+    replacement  = constants.hostname
+  }
+
+  rule {
+    target_label = "node_name"
+    replacement  = sys.env("NODE_NAME")
+  }
+}
+
+loki.source.docker "default" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.linux.targets
+  relabel_rules = discovery.relabel.logs_integrations_docker.rules
+  forward_to    = [loki.process.application_logs.receiver]
+}
+
+// ---------------------------------------------------------
+// PROCESADOR UNIFICADO DE LOGS DE APLICACIONES, POSTGRES Y PGPOOL
+// ---------------------------------------------------------
+loki.process "application_logs" {
+  stage.json {
+    expressions = {
+      level          = "level",
+      error_severity = "error_severity",
+      service        = "service",
+      timestamp      = "timestamp",
+      user           = "user",
+      dbname         = "dbname",
+      app            = "app",
+      message        = "message",
+    }
+    drop_malformed = false
+  }
+
+  stage.regex {
+    expression = "^(?P<pgpool_time>\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2}\\.\\d{3}):\\s+((?P<pgpool_app>[^\\s]+)?\\s+)?pid\\s+(?P<pgpool_pid>\\d+):\\s+(?P<pgpool_level>[A-Z]+):\\s+(?P<pgpool_msg>.*)$"
+  }
+
+  stage.structured_metadata {
+    values = {
+      pgpool_pid   = "pgpool_pid",
+      pgpool_level = "pgpool_level",
+      pgpool_app   = "pgpool_app",
+      pgpool_msg   = "pgpool_msg",
+      pgpool_time  = "pgpool_time",
+    }
+  }
+
+  stage.template {
+    source   = "service_fallback"
+    template = "{{ if .service }}{{ .service }}{{ else if .swarm_service }}{{ .swarm_service }}{{ else }}{{ .container_name }}{{ end }}"
+  }
+
+  stage.template {
+    source   = "level_fallback"
+    template = "{{ if .level }}{{ .level }}{{ else if .error_severity }}{{ .error_severity }}{{ else if .pgpool_level }}{{ .pgpool_level }}{{ else }}INFO{{ end }}"
+  }
+
+  stage.drop {
+    older_than          = "48h"
+    drop_counter_reason = "log_older_than_48h"
+  }
+
+  stage.labels {
+    values = {
+      service      = "service_fallback",
+      service_name = "service_fallback",
+      level        = "level_fallback",
+      dbname       = "dbname",
+      user         = "user",
+    }
+  }
+
+  forward_to = [loki.write.loki_dest.receiver]
+}
